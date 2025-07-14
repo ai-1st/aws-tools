@@ -18,7 +18,7 @@ export class TestLogger implements Logger {
     console.info(message, ...args);
   }
   debug(message: string, ...args: any[]): void {
-    if (process.argv.includes('--verbose')) {
+    if (process.argv.includes('--verbose') || process.env.VERBOSE === 'true') {
       console.debug(message, ...args);
     }
   }
