@@ -188,7 +188,7 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
           subTrendText = `down at ${subPercentage.toFixed(1)}% ${trendPeriodLabel}`;
         }
 
-        const subLine = `${dimension.key}, ${subdim.key}: Total cost for ${periods} ${periodLabel} $${subdim.totalCost.toFixed(2)}, average $${subAvgPeriodCost.toFixed(2)}${avgPeriodLabel}, trending ${subTrendText}, max cost was on ${subMax.date} at $${subMax.cost.toFixed(2)}, min cost was on ${subMin.date} at $${subMin.cost.toFixed(2)}`;
+        const subLine = `${dimension.key}, ${subdim.key}: Total cost for ${periods} ${periodLabel} $${subdim.totalCost.toFixed(2)}, average $${subAvgPeriodCost.toFixed(2)}${avgPeriodLabel}, trending ${subTrendText}, max cost was on ${formatDate(subMax.date)} at $${subMax.cost.toFixed(2)}, min cost was on ${formatDate(subMin.date)} at $${subMin.cost.toFixed(2)}`;
         summaryLines.push(subLine);
       });
     }
