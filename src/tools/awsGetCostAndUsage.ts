@@ -20,11 +20,11 @@ function calculateDateRange(lookBack: number, granularity: 'DAILY' | 'MONTHLY'):
       endDate: endDate.toISOString().split('T')[0],
     };
   } else {
-    // For monthly: end date is first day of current month, start date is lookBack months before
-    const endDate = new Date(today.getFullYear(), today.getMonth(), 1); // First day of current month
+    // For monthly: end date is first day of current month, start date is first day of lookBack months before
+    // Use UTC to avoid timezone issues
+    const endDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1)); // First day of current month
     
-    const startDate = new Date(endDate);
-    startDate.setMonth(endDate.getMonth() - lookBack); // lookBack months before end date
+    const startDate = new Date(Date.UTC(today.getFullYear(), today.getMonth() - lookBack, 1)); // First day of lookBack months ago
     
     return {
       startDate: startDate.toISOString().split('T')[0],
