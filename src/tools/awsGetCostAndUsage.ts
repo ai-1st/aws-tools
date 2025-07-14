@@ -1,6 +1,6 @@
 // src/tools/awsGetCostAndUsage.ts
 
-import { CostExplorerClient, GetCostAndUsageCommand } from '@aws-sdk/client-cost-explorer';
+import { CostExplorerClient, GetCostAndUsageCommand, Expression } from '@aws-sdk/client-cost-explorer';
 import { Logger } from '../logger';
 import { Tool } from '../tool';
 
@@ -87,7 +87,7 @@ function findMinMaxCosts(dailyCosts: { date: string; cost: number }[]): { max: {
   return { max, min };
 }
 
-function generateCostSummary(results: any[], groupBy?: string[]): string {
+function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', groupBy?: string[]): string {
   if (!results || results.length === 0) {
     return 'No cost data found for the specified period.';
   }
@@ -129,21 +129,24 @@ function generateCostSummary(results: any[], groupBy?: string[]): string {
 
   // Generate summary lines
   const summaryLines: string[] = [dateRange];
-  const days = results.length;
+  const periods = results.length;
+  const periodLabel = granularity === 'DAILY' ? 'days' : 'months';
+  const avgPeriodLabel = granularity === 'DAILY' ? '/day' : '/month';
+  const trendPeriodLabel = granularity === 'DAILY' ? 'per day' : 'per month';
 
   topDimensions.forEach(dimension => {
     const { direction, percentage } = calculateTrend(dimension.dailyCosts);
     const { max, min } = findMinMaxCosts(dimension.dailyCosts);
-    const avgDailyCost = dimension.totalCost / days;
+    const avgPeriodCost = dimension.totalCost / periods;
 
     let trendText = 'stable';
     if (direction === 'up') {
-      trendText = `up at ${percentage.toFixed(1)}% per day`;
+      trendText = `up at ${percentage.toFixed(1)}% ${trendPeriodLabel}`;
     } else if (direction === 'down') {
-      trendText = `down at ${percentage.toFixed(1)}% per day`;
+      trendText = `down at ${percentage.toFixed(1)}% ${trendPeriodLabel}`;
     }
 
-    const line = `${dimension.key}: Total cost for ${days} days $${dimension.totalCost.toFixed(2)}, average $${avgDailyCost.toFixed(2)}/day, trending ${trendText}, max cost was on ${max.date} at $${max.cost.toFixed(2)}, min cost was on ${min.date} at $${min.cost.toFixed(2)}`;
+    const line = `${dimension.key}: Total cost for ${periods} ${periodLabel} $${dimension.totalCost.toFixed(2)}, average $${avgPeriodCost.toFixed(2)}${avgPeriodLabel}, trending ${trendText}, max cost was on ${max.date} at $${max.cost.toFixed(2)}, min cost was on ${min.date} at $${min.cost.toFixed(2)}`;
     summaryLines.push(line);
 
     // If we have groupBy with multiple dimensions, show subdimensions
@@ -155,16 +158,16 @@ function generateCostSummary(results: any[], groupBy?: string[]): string {
       subdimensions.forEach(subdim => {
         const { direction: subDirection, percentage: subPercentage } = calculateTrend(subdim.dailyCosts);
         const { max: subMax, min: subMin } = findMinMaxCosts(subdim.dailyCosts);
-        const subAvgDailyCost = subdim.totalCost / days;
+        const subAvgPeriodCost = subdim.totalCost / periods;
 
         let subTrendText = 'stable';
         if (subDirection === 'up') {
-          subTrendText = `up at ${subPercentage.toFixed(1)}% per day`;
+          subTrendText = `up at ${subPercentage.toFixed(1)}% ${trendPeriodLabel}`;
         } else if (subDirection === 'down') {
-          subTrendText = `down at ${subPercentage.toFixed(1)}% per day`;
+          subTrendText = `down at ${subPercentage.toFixed(1)}% ${trendPeriodLabel}`;
         }
 
-        const subLine = `${dimension.key}, ${subdim.key}: Total cost for ${days} days $${subdim.totalCost.toFixed(2)}, average $${subAvgDailyCost.toFixed(2)}/day, trending ${subTrendText}, max cost was on ${subMax.date} at $${subMax.cost.toFixed(2)}, min cost was on ${subMin.date} at $${subMin.cost.toFixed(2)}`;
+        const subLine = `${dimension.key}, ${subdim.key}: Total cost for ${periods} ${periodLabel} $${subdim.totalCost.toFixed(2)}, average $${subAvgPeriodCost.toFixed(2)}${avgPeriodLabel}, trending ${subTrendText}, max cost was on ${subMax.date} at $${subMax.cost.toFixed(2)}, min cost was on ${subMin.date} at $${subMin.cost.toFixed(2)}`;
         summaryLines.push(subLine);
       });
     }
@@ -236,6 +239,15 @@ export const awsGetCostAndUsage: Tool = {
 
     const costExplorerClient = new CostExplorerClient({ region: 'us-east-1', credentials: config.credentials });
 
+    const record_type_filter: Expression = {
+      Not: {
+        Dimensions: {
+          Key: 'RECORD_TYPE',
+          Values: ['Credit', 'Tax', 'Enterprise Discount Program Discount']
+        }
+      }
+    };
+
     const command = new GetCostAndUsageCommand({
       TimePeriod: {
         Start: startDate,
@@ -244,12 +256,17 @@ export const awsGetCostAndUsage: Tool = {
       Granularity: granularity,
       GroupBy: groupBy?.map((g: string) => ({ Type: 'DIMENSION', Key: g })),
       Metrics: ['AmortizedCost', 'UsageQuantity'],
-      Filter: filter,
+      Filter: filter ? {
+        And: [
+          filter,
+          record_type_filter
+        ]
+      } : record_type_filter
     });
 
     try {
       const data = await costExplorerClient.send(command);
-      logger?.debug('awsGetCostAndUsage raw data:', data);
+      // logger?.debug('awsGetCostAndUsage raw data:', data);
       const results = data.ResultsByTime?.map(result => {
         const dimensions: { [key: string]: string } = {};
         
@@ -277,14 +294,14 @@ export const awsGetCostAndUsage: Tool = {
         };
       }) || [];
       
-      const summary = generateCostSummary(results, groupBy);
+      const summary = generateCostSummary(results, granularity, groupBy);
       
       const output = {
         summary,
         datapoints: results,
       };
       
-      logger?.debug('awsGetCostAndUsage output:', output);
+      logger?.debug(`awsGetCostAndUsage output:\n${output.summary}\n`, output.datapoints);
       return output;
     } catch (error) {
       logger?.error('Error getting cost and usage:', error);
