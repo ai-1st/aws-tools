@@ -37,6 +37,19 @@ and pricing.
 npm install aws-tools
 ```
 
+### Development Commands
+
+```bash
+# Run all tests
+npm test
+
+# Run all tests with verbose output
+npm run test:verbose
+
+# Run a specific test file
+npm run test:file tests/awsGetCostAndUsage.test.ts
+```
+
 ### Prerequisites
 
 - Node.js 20+ 

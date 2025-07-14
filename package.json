@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "test": "jest --verbose",
-    "test:verbose": "VERBOSE=true jest --verbose"
+    "test:verbose": "VERBOSE=true jest --verbose",
+    "test:file": "jest --verbose"
   },
   "keywords": ["aws", "vercel-ai-sdk", "tools", "api", "cloudwatch", "ec2", "cost-explorer"],
   "author": "Dmitry Degtyarev",

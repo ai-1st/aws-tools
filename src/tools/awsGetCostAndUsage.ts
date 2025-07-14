@@ -33,21 +33,144 @@ function calculateDateRange(lookBack: number, granularity: 'DAILY' | 'MONTHLY'):
   }
 }
 
-function generateCostSummary(results: any[]): string {
+interface AggregatedDimension {
+  key: string;
+  totalCost: number;
+  dailyCosts: { date: string; cost: number }[];
+  subdimensions?: Map<string, AggregatedDimension>;
+}
+
+function calculateTrend(dailyCosts: { date: string; cost: number }[]): { direction: 'up' | 'down' | 'stable'; percentage: number } {
+  if (dailyCosts.length < 2) {
+    return { direction: 'stable', percentage: 0 };
+  }
+
+  // Simple linear regression
+  const n = dailyCosts.length;
+  const sumX = dailyCosts.reduce((sum, _, index) => sum + index, 0);
+  const sumY = dailyCosts.reduce((sum, item) => sum + item.cost, 0);
+  const sumXY = dailyCosts.reduce((sum, item, index) => sum + index * item.cost, 0);
+  const sumX2 = dailyCosts.reduce((sum, _, index) => sum + index * index, 0);
+
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const avgCost = sumY / n;
+  
+  if (Math.abs(avgCost) < 0.01) {
+    return { direction: 'stable', percentage: 0 };
+  }
+
+  const percentage = (slope / avgCost) * 100;
+  
+  if (Math.abs(percentage) < 0.1) {
+    return { direction: 'stable', percentage: 0 };
+  }
+  
+  return {
+    direction: percentage > 0 ? 'up' : 'down',
+    percentage: Math.abs(percentage)
+  };
+}
+
+function findMinMaxCosts(dailyCosts: { date: string; cost: number }[]): { max: { date: string; cost: number }; min: { date: string; cost: number } } {
+  let max = { date: '', cost: -Infinity };
+  let min = { date: '', cost: Infinity };
+
+  dailyCosts.forEach(({ date, cost }) => {
+    if (cost > max.cost) {
+      max = { date, cost };
+    }
+    if (cost < min.cost) {
+      min = { date, cost };
+    }
+  });
+
+  return { max, min };
+}
+
+function generateCostSummary(results: any[], groupBy?: string[]): string {
   if (!results || results.length === 0) {
     return 'No cost data found for the specified period.';
   }
 
-  const totalCost = results.reduce((sum, result) => sum + (parseFloat(result.amortizedCost) || 0), 0);
-  const totalUsage = results.reduce((sum, result) => sum + (parseFloat(result.usageAmount) || 0), 0);
-  
-  const avgDailyCost = totalCost / results.length;
-  const avgDailyUsage = totalUsage / results.length;
-  
-  const dateRange = `${results[0]?.date} to ${results[results.length - 1]?.date}`;
-  
-  return `Cost analysis for ${dateRange}: Total cost $${totalCost.toFixed(2)}, average daily cost $${avgDailyCost.toFixed(2)}. ` +
-         `Total usage: ${totalUsage.toFixed(2)}, average daily usage: ${avgDailyUsage.toFixed(2)}.`;
+  // Get date range
+  const startDate = results[0]?.date;
+  const endDate = results[results.length - 1]?.date;
+  const dateRange = `Data range: ${startDate} - ${endDate}`;
+
+  // Aggregate data by dimensions
+  const dimensionMap = new Map<string, AggregatedDimension>();
+
+  results.forEach(result => {
+    if (result.dimensions) {
+      Object.entries(result.dimensions).forEach(([key, value]) => {
+        const cost = parseFloat(value as string) || 0;
+        const date = result.date;
+        
+        if (!dimensionMap.has(key)) {
+          dimensionMap.set(key, {
+            key,
+            totalCost: 0,
+            dailyCosts: [],
+            subdimensions: new Map<string, AggregatedDimension>()
+          });
+        }
+        
+        const dimension = dimensionMap.get(key)!;
+        dimension.totalCost += cost;
+        dimension.dailyCosts.push({ date, cost });
+      });
+    }
+  });
+
+  // Sort dimensions by total cost and take top 10
+  const topDimensions = Array.from(dimensionMap.values())
+    .sort((a, b) => b.totalCost - a.totalCost)
+    .slice(0, 10);
+
+  // Generate summary lines
+  const summaryLines: string[] = [dateRange];
+  const days = results.length;
+
+  topDimensions.forEach(dimension => {
+    const { direction, percentage } = calculateTrend(dimension.dailyCosts);
+    const { max, min } = findMinMaxCosts(dimension.dailyCosts);
+    const avgDailyCost = dimension.totalCost / days;
+
+    let trendText = 'stable';
+    if (direction === 'up') {
+      trendText = `up at ${percentage.toFixed(1)}% per day`;
+    } else if (direction === 'down') {
+      trendText = `down at ${percentage.toFixed(1)}% per day`;
+    }
+
+    const line = `${dimension.key}: Total cost for ${days} days $${dimension.totalCost.toFixed(2)}, average $${avgDailyCost.toFixed(2)}/day, trending ${trendText}, max cost was on ${max.date} at $${max.cost.toFixed(2)}, min cost was on ${min.date} at $${min.cost.toFixed(2)}`;
+    summaryLines.push(line);
+
+    // If we have groupBy with multiple dimensions, show subdimensions
+    if (groupBy && groupBy.length > 1 && dimension.subdimensions) {
+      const subdimensions = Array.from(dimension.subdimensions.values())
+        .sort((a, b) => b.totalCost - a.totalCost)
+        .slice(0, 10);
+
+      subdimensions.forEach(subdim => {
+        const { direction: subDirection, percentage: subPercentage } = calculateTrend(subdim.dailyCosts);
+        const { max: subMax, min: subMin } = findMinMaxCosts(subdim.dailyCosts);
+        const subAvgDailyCost = subdim.totalCost / days;
+
+        let subTrendText = 'stable';
+        if (subDirection === 'up') {
+          subTrendText = `up at ${subPercentage.toFixed(1)}% per day`;
+        } else if (subDirection === 'down') {
+          subTrendText = `down at ${subPercentage.toFixed(1)}% per day`;
+        }
+
+        const subLine = `${dimension.key}, ${subdim.key}: Total cost for ${days} days $${subdim.totalCost.toFixed(2)}, average $${subAvgDailyCost.toFixed(2)}/day, trending ${subTrendText}, max cost was on ${subMax.date} at $${subMax.cost.toFixed(2)}, min cost was on ${subMin.date} at $${subMin.cost.toFixed(2)}`;
+        summaryLines.push(subLine);
+      });
+    }
+  });
+
+  return summaryLines.join('\n');
 }
 
 export const awsGetCostAndUsage: Tool = {
@@ -129,24 +252,32 @@ export const awsGetCostAndUsage: Tool = {
       logger?.debug('awsGetCostAndUsage raw data:', data);
       const results = data.ResultsByTime?.map(result => {
         const dimensions: { [key: string]: string } = {};
+        
+        // Process grouped results
         result.Groups?.forEach(group => {
           if (group.Keys && group.Keys.length > 0 && group.Metrics) {
-            const key = group.Keys[0];
+            const key = group.Keys.join(', '); // Join multiple keys for subdimensions
             const metric = group.Metrics['AmortizedCost'];
             if (key && metric && metric.Amount) {
               dimensions[key] = metric.Amount;
             }
           }
         });
+        
+        // If no groups, use total
+        if (Object.keys(dimensions).length === 0 && result.Total) {
+          dimensions['Total'] = result.Total.AmortizedCost?.Amount || '0';
+        }
+        
         return {
           date: result.TimePeriod?.Start,
           dimensions,
-          amortizedCost: result.Total?.AmortizedCost?.Amount,
-          usageAmount: result.Total?.UsageQuantity?.Amount,
+          amortizedCost: result.Total?.AmortizedCost?.Amount || '0',
+          usageAmount: result.Total?.UsageQuantity?.Amount || '0',
         };
       }) || [];
       
-      const summary = generateCostSummary(results);
+      const summary = generateCostSummary(results, groupBy);
       
       const output = {
         summary,
