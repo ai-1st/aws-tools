@@ -1,0 +1,27 @@
+{
+  "name": "aws-tools",
+  "version": "1.0.0",
+  "description": "This project contains AWS API integration tools for use in Vertex AI SDK.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest --verbose"
+  },
+  "keywords": ["aws", "vercel-ai-sdk", "tools", "api", "cloudwatch", "ec2", "cost-explorer"],
+  "author": "Dmitry Degtyarev",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.4",
+    "ts-jest": "^29.4.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.844.0",
+    "@aws-sdk/client-cost-explorer": "^3.844.0",
+    "@aws-sdk/client-cost-optimization-hub": "^3.844.0",
+    "@aws-sdk/client-ec2": "^3.844.0",
+    "tslib": "^2.8.1"
+  }
+}
