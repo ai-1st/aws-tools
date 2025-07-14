@@ -4,6 +4,35 @@ import { CostExplorerClient, GetCostAndUsageCommand } from '@aws-sdk/client-cost
 import { Logger } from '../logger';
 import { Tool } from '../tool';
 
+function calculateDateRange(lookBack: number, granularity: 'DAILY' | 'MONTHLY'): { startDate: string; endDate: string } {
+  const today = new Date();
+  
+  if (granularity === 'DAILY') {
+    // For daily: end date is yesterday, start date is lookBack days before end date
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() - 1); // Yesterday
+    
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - lookBack + 1); // lookBack days before end date
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  } else {
+    // For monthly: end date is first day of current month, start date is lookBack months before
+    const endDate = new Date(today.getFullYear(), today.getMonth(), 1); // First day of current month
+    
+    const startDate = new Date(endDate);
+    startDate.setMonth(endDate.getMonth() - lookBack); // lookBack months before end date
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  }
+}
+
 function generateCostSummary(results: any[]): string {
   if (!results || results.length === 0) {
     return 'No cost data found for the specified period.';
@@ -27,13 +56,12 @@ export const awsGetCostAndUsage: Tool = {
   inputSchema: {
     type: 'object',
     properties: {
-      startDate: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
-      endDate: { type: 'string', description: 'End date in YYYY-MM-DD format' },
+      lookBack: { type: 'number', description: 'Number of days (DAILY) or months (MONTHLY) to look back. Default: 30 for DAILY, 6 for MONTHLY' },
       granularity: { type: 'string', enum: ['DAILY', 'MONTHLY'], description: 'Data granularity' },
       groupBy: { type: 'array', items: { type: 'string', enum: ['AZ', 'INSTANCE_TYPE', 'LINKED_ACCOUNT', 'OPERATION', 'PURCHASE_TYPE', 'SERVICE', 'USAGE_TYPE', 'PLATFORM', 'TENANCY', 'RECORD_TYPE', 'LEGAL_ENTITY_NAME', 'INVOICING_ENTITY', 'DEPLOYMENT_OPTION', 'DATABASE_ENGINE', 'CACHE_ENGINE', 'INSTANCE_TYPE_FAMILY', 'REGION', 'BILLING_ENTITY', 'RESERVATION_ID', 'SAVINGS_PLANS_TYPE', 'SAVINGS_PLAN_ARN', 'OPERATING_SYSTEM'] }, description: 'Grouping dimensions up to 2.' },
       filter: { type: 'object', description: 'Filters to apply' },
     },
-    required: ['startDate', 'endDate', 'granularity'],
+    required: ['granularity'],
   },
   outputSchema: {
     type: 'object',
@@ -71,10 +99,17 @@ export const awsGetCostAndUsage: Tool = {
   },
   defaultConfig: {},
   async invoke(input: any, config: { credentials?: any; logger?: Logger }): Promise<any> {
-    const { startDate, endDate, granularity, groupBy, filter } = input;
+    const { lookBack, granularity, groupBy, filter } = input;
     const logger = config.logger;
 
-    logger?.debug('awsGetCostAndUsage input:', input);
+    // Set default lookBack values
+    const defaultLookBack = granularity === 'DAILY' ? 30 : 6;
+    const actualLookBack = lookBack || defaultLookBack;
+
+    // Calculate date range based on lookBack and granularity
+    const { startDate, endDate } = calculateDateRange(actualLookBack, granularity);
+
+    logger?.debug('awsGetCostAndUsage input:', { ...input, calculatedStartDate: startDate, calculatedEndDate: endDate });
 
     const costExplorerClient = new CostExplorerClient({ region: 'us-east-1', credentials: config.credentials });
 

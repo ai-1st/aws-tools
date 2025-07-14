@@ -6,20 +6,20 @@ import { Logger } from '../src/logger';
 
 export class TestLogger implements Logger {
   log(message: string, ...args: any[]): void {
-    console.log(message, ...args);
+    console.log(message, ...args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg));
   }
   error(message: string, ...args: any[]): void {
-    console.error(message, ...args);
+    console.error(message, ...args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg));
   }
   warn(message: string, ...args: any[]): void {
-    console.warn(message, ...args);
+    console.warn(message, ...args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg));
   }
   info(message: string, ...args: any[]): void {
-    console.info(message, ...args);
+    console.info(message, ...args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg));
   }
   debug(message: string, ...args: any[]): void {
     if (process.argv.includes('--verbose') || process.env.VERBOSE === 'true') {
-      console.debug(message, ...args);
+      console.debug(message, ...args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg));
     }
   }
 }
@@ -37,12 +37,4 @@ export function loadTestConfig() {
   };
 }
 
-export function getLastMonthDateRange() {
-  const today = new Date();
-  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-  return {
-    startDate: lastMonth.toISOString().split('T')[0],
-    endDate: lastDayOfLastMonth.toISOString().split('T')[0],
-  };
-} 
+ 

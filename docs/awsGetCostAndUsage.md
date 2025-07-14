@@ -2,50 +2,45 @@
 
 **Description**: Retrieve AWS cost and usage data for analysis. Always use this tool when cost information is needed.
 
-**Input Schema**:
+## Input Schema
 ```typescript
 {
-  startDate: string                // Required: Start date (YYYY-MM-DD)
-  endDate: string                  // Required: End date (YYYY-MM-DD)
+  lookBack?: number                // Optional: Number of days (DAILY) or months (MONTHLY) to look back. Default: 30 for DAILY, 6 for MONTHLY
   granularity: "DAILY" | "MONTHLY" // Required: Data granularity
   groupBy?: string[]               // Optional: Grouping dimensions (max 2)
   filter?: object                  // Optional: Cost Explorer filters
-  chartTitle?: string              // Optional: Chart title for visualization
+}
+```
+- If `granularity` is `DAILY`, the tool returns data for the last `lookBack` days (ending yesterday).
+- If `granularity` is `MONTHLY`, the tool returns data for the last `lookBack` full months (ending with the previous month).
+
+## Output Schema
+```typescript
+{
+  summary: string                  // Human-readable summary
+  datapoints: Array<{
+    date: string                   // Date of the cost data
+    dimensions: {                  // Grouping dimensions and values
+      [key: string]: string
+    }
+    amortizedCost: number          // Amortized cost amount
+    usageAmount: number            // Usage quantity
+  }>
 }
 ```
 
-**Output Schema**:
+## Example Usage
 ```typescript
-Array<{
-  date: string                     // Date of the cost data
-  dimensions: {                    // Grouping dimensions and values
-    [key: string]: string
-  }
-  amortizedCost: number            // Amortized cost amount
-  usageAmount: number              // Usage quantity
-}>
-```
-
-**Example Usage**:
-```typescript
-// Get monthly costs for the last 6 months
+// Get daily costs for the last 10 days
 {
-  startDate: "2024-01-01",
-  endDate: "2024-06-30",
+  lookBack: 10,
+  granularity: "DAILY"
+}
+
+// Get monthly costs for the last 6 months, grouped by service and region
+{
+  lookBack: 6,
   granularity: "MONTHLY",
-  groupBy: ["SERVICE", "REGION"],
-  chartTitle: "Monthly AWS Costs by Service and Region"
-}
-
-// Get daily costs for a specific service
-{
-  startDate: "2024-12-01",
-  endDate: "2024-12-31",
-  granularity: "DAILY",
-  groupBy: ["SERVICE"],
-  filter: {
-    Service: "Amazon EC2"
-  },
-  chartTitle: "Daily EC2 Costs"
+  groupBy: ["SERVICE", "REGION"]
 }
 ```
