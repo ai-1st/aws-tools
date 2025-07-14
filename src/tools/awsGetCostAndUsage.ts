@@ -95,7 +95,20 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
   // Get date range
   const startDate = results[0]?.date;
   const endDate = results[results.length - 1]?.date;
-  const dateRange = `Data range: ${startDate} - ${endDate}`;
+  
+  // Format dates based on granularity
+  const formatDate = (dateStr: string) => {
+    if (granularity === 'MONTHLY') {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+    return dateStr;
+  };
+  
+  const formattedStartDate = formatDate(startDate);
+  const formattedEndDate = formatDate(endDate);
+  const dimensionsText = groupBy && groupBy.length > 0 ? `, Dimensions: ${groupBy.join(', ')}` : '';
+  const dateRange = `Data range: ${formattedStartDate} - ${formattedEndDate}${dimensionsText}`;
 
   // Aggregate data by dimensions
   const dimensionMap = new Map<string, AggregatedDimension>();
@@ -122,10 +135,18 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
     }
   });
 
-  // Sort dimensions by total cost and take top 10
-  const topDimensions = Array.from(dimensionMap.values())
-    .sort((a, b) => b.totalCost - a.totalCost)
-    .slice(0, 10);
+  // Calculate total cost across all dimensions
+  const totalCost = Array.from(dimensionMap.values()).reduce((sum, dim) => sum + dim.totalCost, 0);
+  
+  // Sort dimensions by total cost and include dimensions that represent 95% of total cost
+  const sortedDimensions = Array.from(dimensionMap.values())
+    .sort((a, b) => b.totalCost - a.totalCost);
+  
+  let cumulativeCost = 0;
+  const topDimensions = sortedDimensions.filter(dimension => {
+    cumulativeCost += dimension.totalCost;
+    return cumulativeCost <= totalCost * 0.95;
+  });
 
   // Generate summary lines
   const summaryLines: string[] = [dateRange];
@@ -146,7 +167,7 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
       trendText = `down at ${percentage.toFixed(1)}% ${trendPeriodLabel}`;
     }
 
-    const line = `${dimension.key}: Total cost for ${periods} ${periodLabel} $${dimension.totalCost.toFixed(2)}, average $${avgPeriodCost.toFixed(2)}${avgPeriodLabel}, trending ${trendText}, max cost was on ${max.date} at $${max.cost.toFixed(2)}, min cost was on ${min.date} at $${min.cost.toFixed(2)}`;
+    const line = `${dimension.key}: Total cost for ${periods} ${periodLabel} $${dimension.totalCost.toFixed(2)}, average $${avgPeriodCost.toFixed(2)}${avgPeriodLabel}, trending ${trendText}, max cost was on ${formatDate(max.date)} at $${max.cost.toFixed(2)}, min cost was on ${formatDate(min.date)} at $${min.cost.toFixed(2)}`;
     summaryLines.push(line);
 
     // If we have groupBy with multiple dimensions, show subdimensions
