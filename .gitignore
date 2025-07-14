@@ -1,3 +1,7 @@
 .aws-creds.json
 node_modules
 dist
+output
+outoput.txt
+.env
+

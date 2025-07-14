@@ -132,6 +132,9 @@ All tools include comprehensive error handling:
 4. **Rate limiting**: AWS API throttling is handled with retries
 5. **Resource not found**: Clear error messages for missing resources
 
+## Returned Data
+
+
 ## Chart Integration
 
 Most AWS tools support optional `chartTitle` parameters that are used to generate meaningful chart titles when visualizing the tool results in the frontend.
