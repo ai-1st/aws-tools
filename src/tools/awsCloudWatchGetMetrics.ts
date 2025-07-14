@@ -4,6 +4,28 @@ import { CloudWatchClient, GetMetricDataCommand } from '@aws-sdk/client-cloudwat
 import { Logger } from '../logger';
 import { Tool } from '../tool';
 
+function generateMetricsSummary(datapoints: any[], namespace: string, metricName: string): string {
+  if (!datapoints || datapoints.length === 0) {
+    return `No ${metricName} metrics found for ${namespace}.`;
+  }
+
+  const values = datapoints.map(dp => dp.Value).filter(v => v !== undefined && v !== null);
+  if (values.length === 0) {
+    return `No valid ${metricName} data points found for ${namespace}.`;
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+  const total = values.reduce((sum, val) => sum + val, 0);
+  
+  const timeRange = `${datapoints[0]?.Timestamp} to ${datapoints[datapoints.length - 1]?.Timestamp}`;
+  
+  return `${metricName} metrics for ${namespace} (${timeRange}): ` +
+         `Min: ${min.toFixed(2)}, Max: ${max.toFixed(2)}, Average: ${avg.toFixed(2)}, Total: ${total.toFixed(2)}. ` +
+         `Data points: ${datapoints.length}.`;
+}
+
 export const awsCloudWatchGetMetrics: Tool = {
   name: 'awsCloudWatchGetMetrics',
   description: 'Retrieve CloudWatch metrics for any AWS service with flexible dimensions and time periods. Essential for analyzing performance trends, usage patterns, and operational metrics.',
@@ -36,6 +58,7 @@ export const awsCloudWatchGetMetrics: Tool = {
   outputSchema: {
     type: 'object',
     properties: {
+      summary: { type: 'string', description: 'Text summary of the CloudWatch metrics' },
       datapoints: {
         type: 'array',
         items: {
@@ -101,12 +124,17 @@ export const awsCloudWatchGetMetrics: Tool = {
       const data = await cloudWatchClient.send(command);
       logger?.debug('awsCloudWatchGetMetrics raw data:', data);
       const result = data.MetricDataResults?.[0];
+      const datapoints = result?.Timestamps?.map((t, i) => ({
+        Timestamp: t.toISOString(),
+        Value: result.Values?.[i],
+        Unit: result.Values?.[i] ? result.Label : '',
+      })) || [];
+      
+      const summary = generateMetricsSummary(datapoints, namespace, metricName);
+      
       const output = {
-        datapoints: result?.Timestamps?.map((t, i) => ({
-          Timestamp: t.toISOString(),
-          Value: result.Values?.[i],
-          Unit: result.Values?.[i] ? result.Label : '',
-        })),
+        summary,
+        datapoints,
         label: result?.Label,
         namespace,
         metricName,

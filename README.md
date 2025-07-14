@@ -3,6 +3,14 @@
 This project contains AWS API integration tools for use in Vercel AI SDK. This project builds an npm module.
 Author is Dmitry Degtyarev.
 
+AWS API may produce thousands of datapoints which could easily overflow LLM context if used as-is.
+
+The important design decision is that tools return their responses in two formats:
+- a text summary intended to be added into the LLM context
+- a JSON with exact data points to be used for charting
+
+The text summary is produced with the help of heuristics tailored for each tool.
+
 ## Table of Contents
 
 - [Tool Overview](#tool-overview)
@@ -17,8 +25,9 @@ Author is Dmitry Degtyarev.
 
 The following AWS tools are available in this module:
 
-- **awsDescribeInstances** - Get detailed information about EC2 instances including configuration, state, and pricing
-- **awsGetCostAndUsage** - Retrieve AWS cost and usage data for analysis
+- **awsDescribeInstances** - Get detailed information about running EC2 instances including configuration, state, 
+and pricing.
+- **awsGetCostAndUsage** - Retrieve AWS cost and usage data for analysis.
 - **awsCloudWatchGetMetrics** - Retrieve CloudWatch metrics for any AWS service with flexible dimensions and time periods
 - **awsCostOptimizationHubListRecommendations** - Retrieve cost optimization recommendations from AWS Cost Optimization Hub
 
@@ -131,9 +140,6 @@ All tools include comprehensive error handling:
 3. **Invalid region**: Ensure region is valid and accessible
 4. **Rate limiting**: AWS API throttling is handled with retries
 5. **Resource not found**: Clear error messages for missing resources
-
-## Returned Data
-
 
 ## Chart Integration
 

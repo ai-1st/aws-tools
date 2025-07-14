@@ -4,6 +4,29 @@ import { CostOptimizationHubClient, ListRecommendationsCommand } from '@aws-sdk/
 import { Logger } from '../logger';
 import { Tool } from '../tool';
 
+function generateRecommendationsSummary(recommendations: any[], totalFetched: number, totalSavings: any): string {
+  if (!recommendations || recommendations.length === 0) {
+    return 'No cost optimization recommendations found.';
+  }
+
+  const totalRecommendations = recommendations.length;
+  const totalMonthlySavings = parseFloat(totalSavings.amount);
+  
+  const topRecommendations = recommendations.slice(0, 3);
+  const topSavings = topRecommendations.map(rec => ({
+    title: rec.title,
+    savings: parseFloat(rec.estimatedMonthlySavings || '0')
+  }));
+  
+  const topSavingsText = topSavings
+    .map(rec => `${rec.title} ($${rec.savings.toFixed(2)}/month)`)
+    .join(', ');
+  
+  return `Found ${totalRecommendations} cost optimization recommendations out of ${totalFetched} total. ` +
+         `Total potential monthly savings: $${totalMonthlySavings.toFixed(2)}. ` +
+         `Top recommendations: ${topSavingsText}.`;
+}
+
 export const awsCostOptimizationHubListRecommendations: Tool = {
   name: 'awsCostOptimizationHubListRecommendations',
   description: 'Retrieve cost optimization recommendations from AWS Cost Optimization Hub. Fetches all available recommendations, sorts them by estimated monthly savings in decreasing order, and returns the top N recommendations with the highest potential savings.',
@@ -18,7 +41,8 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
   outputSchema: {
     type: 'object',
     properties: {
-      recommendations: {
+      summary: { type: 'string', description: 'Text summary of the cost optimization recommendations' },
+      datapoints: {
         type: 'array',
         items: {
           type: 'object',
@@ -47,7 +71,7 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
           unit: { type: 'string' },
         },
       },
-      summary: {
+      summaryStats: {
         type: 'object',
         properties: {
           totalRecommendations: { type: 'number' },
@@ -104,22 +128,27 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
         service: (item as any).source,
         action: (item as any).action,
         reason: (item as any).reason,
-      }));
+      })) || [];
 
       const totalEstimatedMonthlySavings = recommendations?.reduce((acc: number, r: any) => acc + parseFloat(r.estimatedMonthlySavings || '0'), 0) || 0;
       const savings = recommendations?.map((r: any) => parseFloat(r.estimatedMonthlySavings || '0')) || [];
       const highestSavings = Math.max(...savings);
       const lowestSavings = Math.min(...savings);
 
+      const totalSavings = {
+        amount: totalEstimatedMonthlySavings.toFixed(2),
+        unit: 'USD',
+      };
+
+      const summary = generateRecommendationsSummary(recommendations, data.items?.length || 0, totalSavings);
+
       const output = {
-        recommendations,
+        summary,
+        datapoints: recommendations,
         count: recommendations?.length,
         totalFetched: data.items?.length,
-        totalEstimatedMonthlySavings: {
-          amount: totalEstimatedMonthlySavings.toFixed(2),
-          unit: 'USD',
-        },
-        summary: {
+        totalEstimatedMonthlySavings: totalSavings,
+        summaryStats: {
           totalRecommendations: data.items?.length,
           topRecommendationsReturned: recommendations?.length,
           averageSavingsPerRecommendation: (totalEstimatedMonthlySavings / (recommendations?.length || 1)).toFixed(2),

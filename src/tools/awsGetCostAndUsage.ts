@@ -4,6 +4,23 @@ import { CostExplorerClient, GetCostAndUsageCommand } from '@aws-sdk/client-cost
 import { Logger } from '../logger';
 import { Tool } from '../tool';
 
+function generateCostSummary(results: any[]): string {
+  if (!results || results.length === 0) {
+    return 'No cost data found for the specified period.';
+  }
+
+  const totalCost = results.reduce((sum, result) => sum + (parseFloat(result.amortizedCost) || 0), 0);
+  const totalUsage = results.reduce((sum, result) => sum + (parseFloat(result.usageAmount) || 0), 0);
+  
+  const avgDailyCost = totalCost / results.length;
+  const avgDailyUsage = totalUsage / results.length;
+  
+  const dateRange = `${results[0]?.date} to ${results[results.length - 1]?.date}`;
+  
+  return `Cost analysis for ${dateRange}: Total cost $${totalCost.toFixed(2)}, average daily cost $${avgDailyCost.toFixed(2)}. ` +
+         `Total usage: ${totalUsage.toFixed(2)}, average daily usage: ${avgDailyUsage.toFixed(2)}.`;
+}
+
 export const awsGetCostAndUsage: Tool = {
   name: 'awsGetCostAndUsage',
   description: 'Retrieve AWS cost and usage data for analysis. Always use this tool when cost information is needed.',
@@ -20,14 +37,20 @@ export const awsGetCostAndUsage: Tool = {
     required: ['startDate', 'endDate', 'granularity'],
   },
   outputSchema: {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        date: { type: 'string' },
-        dimensions: { type: 'object' },
-        amortizedCost: { type: 'number' },
-        usageAmount: { type: 'number' },
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'Text summary of the cost and usage data' },
+      datapoints: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            date: { type: 'string' },
+            dimensions: { type: 'object' },
+            amortizedCost: { type: 'number' },
+            usageAmount: { type: 'number' },
+          },
+        },
       },
     },
   },
@@ -87,9 +110,17 @@ export const awsGetCostAndUsage: Tool = {
           amortizedCost: result.Total?.AmortizedCost?.Amount,
           usageAmount: result.Total?.UsageQuantity?.Amount,
         };
-      });
-      logger?.debug('awsGetCostAndUsage output:', results);
-      return results;
+      }) || [];
+      
+      const summary = generateCostSummary(results);
+      
+      const output = {
+        summary,
+        datapoints: results,
+      };
+      
+      logger?.debug('awsGetCostAndUsage output:', output);
+      return output;
     } catch (error) {
       logger?.error('Error getting cost and usage:', error);
       throw error;

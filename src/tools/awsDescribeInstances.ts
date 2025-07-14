@@ -4,6 +4,34 @@ import { EC2Client, DescribeInstancesCommand } from '@aws-sdk/client-ec2';
 import { Logger } from '../logger';
 import { Tool } from '../tool';
 
+function generateInstanceSummary(instances: any[]): string {
+  if (!instances || instances.length === 0) {
+    return 'No EC2 instances found.';
+  }
+
+  const totalInstances = instances.length;
+  const runningInstances = instances.filter(inst => inst.state === 'running').length;
+  const stoppedInstances = totalInstances - runningInstances;
+  
+  const instanceTypes = instances.reduce((acc: { [key: string]: number }, inst: any) => {
+    acc[inst.instanceType] = (acc[inst.instanceType] || 0) + 1;
+    return acc;
+  }, {});
+  
+  const topInstanceTypes = Object.entries(instanceTypes)
+    .sort(([,a], [,b]) => (b as number) - (a as number))
+    .slice(0, 3)
+    .map(([type, count]) => `${type} (${count})`)
+    .join(', ');
+
+  const totalUptime = instances.reduce((sum, inst) => sum + (inst.uptimeHours || 0), 0);
+  const avgUptime = totalUptime / totalInstances;
+
+  return `Found ${totalInstances} EC2 instances. ${runningInstances} are running and ${stoppedInstances} are stopped. ` +
+         `Most common instance types: ${topInstanceTypes}. ` +
+         `Average uptime: ${avgUptime.toFixed(1)} hours.`;
+}
+
 export const awsDescribeInstances: Tool = {
   name: 'awsDescribeInstances',
   description: 'Get detailed information about EC2 instances including their configuration, state, and pricing.',
@@ -30,17 +58,24 @@ export const awsDescribeInstances: Tool = {
     required: ['region'],
   },
   outputSchema: {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        instanceId: { type: 'string' },
-        instanceName: { type: 'string' },
-        instanceType: { type: 'string' },
-        platform: { type: 'string' },
-        tenancy: { type: 'string' },
-        region: { type: 'string' },
-        uptimeHours: { type: 'number' },
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'Text summary of the EC2 instances' },
+      datapoints: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            instanceId: { type: 'string' },
+            instanceName: { type: 'string' },
+            instanceType: { type: 'string' },
+            platform: { type: 'string' },
+            tenancy: { type: 'string' },
+            region: { type: 'string' },
+            uptimeHours: { type: 'number' },
+            state: { type: 'string' },
+          },
+        },
       },
     },
   },
@@ -87,10 +122,19 @@ export const awsDescribeInstances: Tool = {
           tenancy: instance.Placement?.Tenancy,
           region: instance.Placement?.AvailabilityZone?.slice(0, -1),
           uptimeHours: instance.LaunchTime ? Math.floor((new Date().getTime() - instance.LaunchTime.getTime()) / 3600000) : 0,
+          state: instance.State?.Name,
         }))
-      );
-      logger?.debug('awsDescribeInstances output:', instances);
-      return instances;
+      ) || [];
+      
+      const summary = generateInstanceSummary(instances);
+      
+      const output = {
+        summary,
+        datapoints: instances,
+      };
+      
+      logger?.debug('awsDescribeInstances output:', output);
+      return output;
     } catch (error) {
       logger?.error('Error describing EC2 instances:', error);
       throw error;
