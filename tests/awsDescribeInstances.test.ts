@@ -46,6 +46,8 @@ describe('AWS Describe Instances E2E Tests', () => {
       region: 'us-east-1',
     };
     const result = await invoke('awsDescribeInstances', input, config);
-    expect(result).toBeInstanceOf(Array);
+    expect(result).toHaveProperty('summary');
+    expect(result).toHaveProperty('datapoints');
+    expect(result.datapoints).toBeInstanceOf(Array);
   });
 });

@@ -53,7 +53,6 @@ export const awsDescribeInstances: Tool = {
         description: 'Filters to apply to the describe operation',
       },
       maxResults: { type: 'number', description: 'Maximum number of results to return (default: 1000)' },
-      chartTitle: { type: 'string', description: 'Title for the chart that will be generated from resulting data' },
     },
     required: ['region'],
   },

@@ -32,7 +32,6 @@ export const awsGetCostAndUsage: Tool = {
       granularity: { type: 'string', enum: ['DAILY', 'MONTHLY'], description: 'Data granularity' },
       groupBy: { type: 'array', items: { type: 'string', enum: ['AZ', 'INSTANCE_TYPE', 'LINKED_ACCOUNT', 'OPERATION', 'PURCHASE_TYPE', 'SERVICE', 'USAGE_TYPE', 'PLATFORM', 'TENANCY', 'RECORD_TYPE', 'LEGAL_ENTITY_NAME', 'INVOICING_ENTITY', 'DEPLOYMENT_OPTION', 'DATABASE_ENGINE', 'CACHE_ENGINE', 'INSTANCE_TYPE_FAMILY', 'REGION', 'BILLING_ENTITY', 'RESERVATION_ID', 'SAVINGS_PLANS_TYPE', 'SAVINGS_PLAN_ARN', 'OPERATING_SYSTEM'] }, description: 'Grouping dimensions up to 2.' },
       filter: { type: 'object', description: 'Filters to apply' },
-      chartTitle: { type: 'string', description: 'Title for the chart that will be generated' },
     },
     required: ['startDate', 'endDate', 'granularity'],
   },

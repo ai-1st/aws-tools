@@ -51,7 +51,6 @@ export const awsCloudWatchGetMetrics: Tool = {
       period: { type: 'number', description: 'Period in seconds (300=5min, 3600=1hour, 86400=1day)' },
       statistic: { type: 'string', enum: ['Sum', 'Average', 'Maximum', 'Minimum', 'SampleCount'], description: 'Statistic to retrieve' },
       region: { type: 'string', description: 'AWS region (defaults to us-east-1)' },
-      chartTitle: { type: 'string', description: 'Title for the chart that will be generated' },
     },
     required: ['namespace', 'metricName', 'startTime', 'endTime', 'period', 'statistic'],
   },

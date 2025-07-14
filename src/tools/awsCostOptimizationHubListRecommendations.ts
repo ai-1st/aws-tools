@@ -35,7 +35,6 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
     properties: {
       region: { type: 'string', description: 'AWS region (default: us-east-1)' },
       maxResults: { type: 'number', description: 'Maximum number of recommendations to return (default: 50)' },
-      chartTitle: { type: 'string', description: 'Title for the chart that will be generated' },
     },
   },
   outputSchema: {

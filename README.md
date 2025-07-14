@@ -86,6 +86,10 @@ const result = await invoke('awsDescribeInstances', {
     secretAccessKey: 'YOUR_SECRET_KEY'
   }
 });
+
+// Result format
+console.log(result.summary);     // Human-readable summary
+console.log(result.datapoints);  // Raw data for charting
 ```
 
 ## Configuration
@@ -141,31 +145,14 @@ All tools include comprehensive error handling:
 4. **Rate limiting**: AWS API throttling is handled with retries
 5. **Resource not found**: Clear error messages for missing resources
 
-## Chart Integration
+## Data Format
 
-Most AWS tools support optional `chartTitle` parameters that are used to generate meaningful chart titles when visualizing the tool results in the frontend.
+All AWS tools return data in a consistent format with two main properties:
 
-### Chart Title Best Practices
+- **summary**: A human-readable text summary of the data, optimized for LLM context
+- **datapoints**: The raw data points in JSON format for charting and analysis
 
-- Use descriptive, specific titles
-- Include time periods when relevant
-- Mention specific resources or services
-- Keep titles concise but informative
-
-### Example Chart Titles
-
-```typescript
-// Good examples
-"EC2 Instances in us-east-1"
-"Monthly AWS Costs by Service (Jan-Jun 2024)"
-"Lambda Invocations for my-function (Last 30 days)"
-"Top 10 Cost Optimization Recommendations"
-
-// Avoid generic titles
-"Data"
-"Results"
-"Information"
-```
+This design prevents LLM context overflow while providing both human-readable insights and structured data for visualization.
 
 ## Contributing
 

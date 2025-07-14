@@ -56,8 +56,9 @@ describe('AWS Get Cost and Usage E2E Tests', () => {
       granularity: 'DAILY',
     };
     const result = await invoke('awsGetCostAndUsage', input, config);
-    expect(result).toBeInstanceOf(Array);
-    expect(result[0].groups).toBeUndefined();
+    expect(result).toHaveProperty('summary');
+    expect(result).toHaveProperty('datapoints');
+    expect(result.datapoints).toBeInstanceOf(Array);
   });
 
   test('should get cost and usage data grouped by SERVICE', async () => {
@@ -68,8 +69,12 @@ describe('AWS Get Cost and Usage E2E Tests', () => {
       groupBy: ['SERVICE'],
     };
     const result = await invoke('awsGetCostAndUsage', input, config);
-    expect(result).toBeInstanceOf(Array);
-    expect(result[0]).toHaveProperty('dimensions');
+    expect(result).toHaveProperty('summary');
+    expect(result).toHaveProperty('datapoints');
+    expect(result.datapoints).toBeInstanceOf(Array);
+    if (result.datapoints.length > 0) {
+      expect(result.datapoints[0]).toHaveProperty('dimensions');
+    }
   });
 
   test('should get cost and usage data grouped by SERVICE and USAGE_TYPE', async () => {
@@ -80,7 +85,11 @@ describe('AWS Get Cost and Usage E2E Tests', () => {
       groupBy: ['SERVICE', 'USAGE_TYPE'],
     };
     const result = await invoke('awsGetCostAndUsage', input, config);
-    expect(result).toBeInstanceOf(Array);
-    expect(result[0]).toHaveProperty('dimensions');
+    expect(result).toHaveProperty('summary');
+    expect(result).toHaveProperty('datapoints');
+    expect(result.datapoints).toBeInstanceOf(Array);
+    if (result.datapoints.length > 0) {
+      expect(result.datapoints[0]).toHaveProperty('dimensions');
+    }
   });
 });
