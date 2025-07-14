@@ -87,6 +87,18 @@ function findMinMaxCosts(dailyCosts: { date: string; cost: number }[]): { max: {
   return { max, min };
 }
 
+function calculateStandardDeviation(costs: number[]): number {
+  if (costs.length < 2) {
+    return 0;
+  }
+  
+  const mean = costs.reduce((sum, cost) => sum + cost, 0) / costs.length;
+  const squaredDifferences = costs.map(cost => Math.pow(cost - mean, 2));
+  const variance = squaredDifferences.reduce((sum, diff) => sum + diff, 0) / costs.length;
+  
+  return Math.sqrt(variance);
+}
+
 function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', groupBy?: string[]): string {
   if (!results || results.length === 0) {
     return 'No cost data found for the specified period.';
@@ -108,7 +120,7 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
   const formattedStartDate = formatDate(startDate);
   const formattedEndDate = formatDate(endDate);
   const dimensionsText = groupBy && groupBy.length > 0 ? `, Dimensions: ${groupBy.join(', ')}` : '';
-  const dateRange = `Data range: ${formattedStartDate} - ${formattedEndDate}${dimensionsText}`;
+  const dateRange = `awsGetCostAndUsage data range: ${formattedStartDate} - ${formattedEndDate}${dimensionsText}`;
 
   // Aggregate data by dimensions
   const dimensionMap = new Map<string, AggregatedDimension>();
@@ -118,6 +130,11 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
       Object.entries(result.dimensions).forEach(([key, value]) => {
         const cost = parseFloat(value as string) || 0;
         const date = result.date;
+        
+        // Filter out costs less than $0.01
+        if (cost < 0.01) {
+          return;
+        }
         
         if (!dimensionMap.has(key)) {
           dimensionMap.set(key, {
@@ -159,6 +176,7 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
     const { direction, percentage } = calculateTrend(dimension.dailyCosts);
     const { max, min } = findMinMaxCosts(dimension.dailyCosts);
     const avgPeriodCost = dimension.totalCost / periods;
+    const stdDev = calculateStandardDeviation(dimension.dailyCosts.map(d => d.cost));
 
     let trendText = 'stable';
     if (direction === 'up') {
@@ -167,7 +185,7 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
       trendText = `down at ${percentage.toFixed(1)}% ${trendPeriodLabel}`;
     }
 
-    const line = `${dimension.key}: Total cost for ${periods} ${periodLabel} $${dimension.totalCost.toFixed(2)}, average $${avgPeriodCost.toFixed(2)}${avgPeriodLabel}, trending ${trendText}, max cost was on ${formatDate(max.date)} at $${max.cost.toFixed(2)}, min cost was on ${formatDate(min.date)} at $${min.cost.toFixed(2)}`;
+    const line = `${dimension.key}: Total cost for ${periods} ${periodLabel} $${dimension.totalCost.toFixed(2)}, average $${avgPeriodCost.toFixed(2)}${avgPeriodLabel} (±$${stdDev.toFixed(2)}), trending ${trendText}, max cost was on ${formatDate(max.date)} at $${max.cost.toFixed(2)}, min cost was on ${formatDate(min.date)} at $${min.cost.toFixed(2)}`;
     summaryLines.push(line);
 
     // If we have groupBy with multiple dimensions, show subdimensions
@@ -180,6 +198,7 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
         const { direction: subDirection, percentage: subPercentage } = calculateTrend(subdim.dailyCosts);
         const { max: subMax, min: subMin } = findMinMaxCosts(subdim.dailyCosts);
         const subAvgPeriodCost = subdim.totalCost / periods;
+        const subStdDev = calculateStandardDeviation(subdim.dailyCosts.map(d => d.cost));
 
         let subTrendText = 'stable';
         if (subDirection === 'up') {
@@ -188,7 +207,7 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
           subTrendText = `down at ${subPercentage.toFixed(1)}% ${trendPeriodLabel}`;
         }
 
-        const subLine = `${dimension.key}, ${subdim.key}: Total cost for ${periods} ${periodLabel} $${subdim.totalCost.toFixed(2)}, average $${subAvgPeriodCost.toFixed(2)}${avgPeriodLabel}, trending ${subTrendText}, max cost was on ${formatDate(subMax.date)} at $${subMax.cost.toFixed(2)}, min cost was on ${formatDate(subMin.date)} at $${subMin.cost.toFixed(2)}`;
+        const subLine = `${dimension.key}, ${subdim.key}: Total cost for ${periods} ${periodLabel} $${subdim.totalCost.toFixed(2)}, average $${subAvgPeriodCost.toFixed(2)}${avgPeriodLabel} (±$${subStdDev.toFixed(2)}), trending ${subTrendText}, max cost was on ${formatDate(subMax.date)} at $${subMax.cost.toFixed(2)}, min cost was on ${formatDate(subMin.date)} at $${subMin.cost.toFixed(2)}`;
         summaryLines.push(subLine);
       });
     }
@@ -297,14 +316,21 @@ export const awsGetCostAndUsage: Tool = {
             const key = group.Keys.join(', '); // Join multiple keys for subdimensions
             const metric = group.Metrics['AmortizedCost'];
             if (key && metric && metric.Amount) {
-              dimensions[key] = metric.Amount;
+              const cost = parseFloat(metric.Amount);
+              // Filter out costs less than $0.01
+              if (cost >= 0.01) {
+                dimensions[key] = metric.Amount;
+              }
             }
           }
         });
         
         // If no groups, use total
         if (Object.keys(dimensions).length === 0 && result.Total) {
-          dimensions['Total'] = result.Total.AmortizedCost?.Amount || '0';
+          const totalCost = parseFloat(result.Total.AmortizedCost?.Amount || '0');
+          if (totalCost >= 0.01) {
+            dimensions['Total'] = result.Total.AmortizedCost?.Amount || '0';
+          }
         }
         
         return {
