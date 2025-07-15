@@ -227,7 +227,7 @@ export const awsGetCostAndUsage: Tool = {
       groupBy: { type: 'array', items: { type: 'string', enum: ['AZ', 'INSTANCE_TYPE', 'LINKED_ACCOUNT', 'OPERATION', 'PURCHASE_TYPE', 'SERVICE', 'USAGE_TYPE', 'PLATFORM', 'TENANCY', 'RECORD_TYPE', 'LEGAL_ENTITY_NAME', 'INVOICING_ENTITY', 'DEPLOYMENT_OPTION', 'DATABASE_ENGINE', 'CACHE_ENGINE', 'INSTANCE_TYPE_FAMILY', 'REGION', 'BILLING_ENTITY', 'RESERVATION_ID', 'SAVINGS_PLANS_TYPE', 'SAVINGS_PLAN_ARN', 'OPERATING_SYSTEM'] }, description: 'Grouping dimensions up to 2.' },
       filter: { type: 'object', description: 'Filters to apply' },
     },
-    required: ['granularity'],
+    required: ['granularity', 'groupBy'],
   },
   outputSchema: {
     type: 'object',
@@ -240,8 +240,6 @@ export const awsGetCostAndUsage: Tool = {
           properties: {
             date: { type: 'string' },
             dimensions: { type: 'object' },
-            amortizedCost: { type: 'number' },
-            usageAmount: { type: 'number' },
           },
         },
       },
@@ -271,11 +269,14 @@ export const awsGetCostAndUsage: Tool = {
     // Set default lookBack values
     const defaultLookBack = granularity === 'DAILY' ? 30 : 6;
     const actualLookBack = lookBack || defaultLookBack;
+    
+    // Default to SERVICE if groupBy is empty
+    const actualGroupBy = groupBy && groupBy.length > 0 ? groupBy : ['SERVICE'];
 
     // Calculate date range based on lookBack and granularity
     const { startDate, endDate } = calculateDateRange(actualLookBack, granularity);
 
-    logger?.debug('awsGetCostAndUsage input:', { ...input, calculatedStartDate: startDate, calculatedEndDate: endDate });
+    logger?.debug('awsGetCostAndUsage input:', { ...input, calculatedStartDate: startDate, calculatedEndDate: endDate, actualGroupBy });
 
     const costExplorerClient = new CostExplorerClient({ region: 'us-east-1', credentials: config.credentials });
 
@@ -294,7 +295,7 @@ export const awsGetCostAndUsage: Tool = {
         End: endDate,
       },
       Granularity: granularity,
-      GroupBy: groupBy?.map((g: string) => ({ Type: 'DIMENSION', Key: g })),
+      GroupBy: actualGroupBy.map((g: string) => ({ Type: 'DIMENSION', Key: g })),
       Metrics: ['AmortizedCost', 'UsageQuantity'],
       Filter: filter ? {
         And: [
@@ -305,47 +306,74 @@ export const awsGetCostAndUsage: Tool = {
     });
 
     try {
-      const data = await costExplorerClient.send(command);
-      // logger?.debug('awsGetCostAndUsage raw data:', data);
-      const results = data.ResultsByTime?.map(result => {
-        const dimensions: { [key: string]: string } = {};
-        
-        // Process grouped results
-        result.Groups?.forEach(group => {
-          if (group.Keys && group.Keys.length > 0 && group.Metrics) {
-            const key = group.Keys.join(', '); // Join multiple keys for subdimensions
-            const metric = group.Metrics['AmortizedCost'];
-            if (key && metric && metric.Amount) {
-              const cost = parseFloat(metric.Amount);
-              // Filter out costs less than $0.01
-              if (cost >= 0.01) {
-                dimensions[key] = metric.Amount;
-              }
-            }
-          }
+      let allResults: any[] = [];
+      let nextToken: string | undefined;
+      
+      do {
+        const commandWithToken = new GetCostAndUsageCommand({
+          TimePeriod: {
+            Start: startDate,
+            End: endDate,
+          },
+          Granularity: granularity,
+          GroupBy: actualGroupBy.map((g: string) => ({ Type: 'DIMENSION', Key: g })),
+          Metrics: ['AmortizedCost', 'UsageQuantity'],
+          Filter: filter ? {
+            And: [
+              filter,
+              record_type_filter
+            ]
+          } : record_type_filter,
+          NextPageToken: nextToken
         });
         
-        // If no groups, use total
-        if (Object.keys(dimensions).length === 0 && result.Total) {
-          const totalCost = parseFloat(result.Total.AmortizedCost?.Amount || '0');
-          if (totalCost >= 0.01) {
-            dimensions['Total'] = result.Total.AmortizedCost?.Amount || '0';
-          }
-        }
+        const data = await costExplorerClient.send(commandWithToken);
+        nextToken = data.NextPageToken;
         
-        return {
-          date: result.TimePeriod?.Start,
-          dimensions,
-          amortizedCost: result.Total?.AmortizedCost?.Amount || '0',
-          usageAmount: result.Total?.UsageQuantity?.Amount || '0',
-        };
-      }) || [];
+        // Process current page results
+        const pageResults = data.ResultsByTime?.map(result => {
+          const dimensions: { [key: string]: string } = {};
+          
+          // Process grouped results
+          result.Groups?.forEach(group => {
+            if (group.Keys && group.Keys.length > 0 && group.Metrics) {
+              const key = group.Keys.join(', '); // Join multiple keys for subdimensions
+              const metric = group.Metrics['AmortizedCost'];
+              if (key && metric && metric.Amount) {
+                const cost = parseFloat(metric.Amount);
+                // Filter out costs less than $0.01
+                if (cost >= 0.01) {
+                  dimensions[key] = metric.Amount;
+                }
+              }
+            }
+          });
+          
+          // If no groups, use total
+          if (Object.keys(dimensions).length === 0 && result.Total) {
+            const totalCost = parseFloat(result.Total.AmortizedCost?.Amount || '0');
+            if (totalCost >= 0.01) {
+              dimensions['Total'] = result.Total.AmortizedCost?.Amount || '0';
+            }
+          }
+          
+          return {
+            date: result.TimePeriod?.Start,
+            dimensions,
+          };
+        }) || [];
+        
+        allResults = allResults.concat(pageResults);
+        
+        logger?.debug(`Fetched page with ${pageResults.length} results, nextToken: ${nextToken}`);
+        
+      } while (nextToken);
       
-      const summary = generateCostSummary(results, granularity, groupBy);
+      const summary = generateCostSummary(allResults, granularity, actualGroupBy);
       
       const output = {
         summary,
-        datapoints: results,
+        datapoints: allResults,
       };
       
       logger?.debug(`awsGetCostAndUsage output:\n${output.summary}\n`, output.datapoints);
