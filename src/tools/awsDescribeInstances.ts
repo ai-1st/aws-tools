@@ -115,7 +115,35 @@ function getOperationCode(platform: string): string {
   return '';
 }
 
-function calculateInstanceCost(instanceType: string, platform: string, region: string, tenancy: string, pricingData: any): { hourlyCost: number; monthlyCost: number } | null {
+function calculateInstanceCost(instanceType: string, platform: string, region: string, tenancy: string, pricingData: any): { 
+  onDemandCost: {
+    hourlyCost: number; 
+    monthlyCost: number;
+  };
+  savingsPlanCost: {
+    hourlyCost: number; 
+    monthlyCost: number;
+  };
+  specifications?: {
+    vCPU: number;
+    memory: number;
+    networkPerformance: number;
+    dedicatedEbsThroughput: number;
+    gpu?: number;
+    gpuMemory?: number;
+  };
+  pricingDetails?: {
+    family: string;
+    size: string;
+    operationCode: string;
+    tenancyType: string;
+    currentGeneration: boolean;
+    instanceFamily: string;
+    physicalProcessor: string;
+    clockSpeed: number;
+    processorFeatures: string;
+  };
+} | null {
   try {
     // Parse instance type (e.g., "m5.large" -> family: "m5", size: "large")
     const match = instanceType.match(/^([a-z0-9]+)\.(.+)$/);
@@ -143,14 +171,49 @@ function calculateInstanceCost(instanceType: string, platform: string, region: s
     const prices = regionPricing.split(',').map((p: string) => parseFloat(p) || 0);
     
     // Get OnDemand price (position 0 for Shared, position 7 for Dedicated)
-    const priceIndex = tenancyType === 'Dedicated' ? 7 : 0;
-    const hourlyCost = prices[priceIndex];
+    const onDemandPriceIndex = tenancyType === 'Dedicated' ? 7 : 0;
+    const onDemandHourlyCost = prices[onDemandPriceIndex];
     
-    if (hourlyCost <= 0) return null;
+    // Get 3-year no-upfront Compute Savings Plan price (position 4 for Shared, position 11 for Dedicated)
+    const savingsPlanPriceIndex = tenancyType === 'Dedicated' ? 11 : 4;
+    const savingsPlanHourlyCost = prices[savingsPlanPriceIndex];
+    
+    if (onDemandHourlyCost <= 0) return null;
+    
+    // Extract specifications
+    const specifications = {
+      vCPU: sizeData['vCPU, cores'] || 0,
+      memory: sizeData['Memory, GB'] || 0,
+      networkPerformance: sizeData['Network Performance, Mbps'] || 0,
+      dedicatedEbsThroughput: sizeData['Dedicated EBS Throughput, Mbps'] || 0,
+      ...(sizeData['GPU, cores'] > 0 && { gpu: sizeData['GPU, cores'] }),
+      ...(sizeData['GPU Memory, GB'] > 0 && { gpuMemory: sizeData['GPU Memory, GB'] })
+    };
+    
+    // Extract pricing details
+    const pricingDetails = {
+      family,
+      size,
+      operationCode,
+      tenancyType,
+      currentGeneration: familyData['Current Generation'] === 'Yes',
+      instanceFamily: familyData['Instance Family'] || '',
+      physicalProcessor: familyData['Physical Processor'] || '',
+      clockSpeed: familyData['Clock Speed, GHz'] || 0,
+      processorFeatures: familyData['Processor Features'] || ''
+    };
     
     return {
-      hourlyCost,
-      monthlyCost: hourlyCost * 730 // 730 hours per month (average)
+      onDemandCost: {
+        hourlyCost: onDemandHourlyCost,
+        monthlyCost: onDemandHourlyCost * 730 // 730 hours per month (average)
+      },
+      savingsPlanCost: {
+        hourlyCost: savingsPlanHourlyCost || 0,
+        monthlyCost: (savingsPlanHourlyCost || 0) * 730 // 730 hours per month (average)
+      },
+      specifications,
+      pricingDetails
     };
   } catch (error) {
     return null;
@@ -223,7 +286,12 @@ function generateInstanceSummary(instances: any[]): string {
     // Format cost information
     let costInfo = '';
     if (instance.cost) {
-      costInfo = `, ~$${instance.cost.hourlyCost.toFixed(4)}/hr ($${instance.cost.monthlyCost.toFixed(2)}/mo)`;
+      const onDemand = instance.cost.onDemandCost;
+      const savingsPlan = instance.cost.savingsPlanCost;
+      costInfo = `, ~$${onDemand.hourlyCost.toFixed(4)}/hr ($${onDemand.monthlyCost.toFixed(2)}/mo) OnDemand`;
+      if (savingsPlan.hourlyCost > 0) {
+        costInfo += `, ~$${savingsPlan.hourlyCost.toFixed(4)}/hr ($${savingsPlan.monthlyCost.toFixed(2)}/mo) 3yr Savings Plan`;
+      }
     }
     
     // Format volumes concisely for cost analysis
@@ -293,8 +361,45 @@ export const awsDescribeInstances: Tool = {
             cost: {
               type: 'object',
               properties: {
-                hourlyCost: { type: 'number' },
-                monthlyCost: { type: 'number' },
+                onDemandCost: {
+                  type: 'object',
+                  properties: {
+                    hourlyCost: { type: 'number' },
+                    monthlyCost: { type: 'number' },
+                  },
+                },
+                savingsPlanCost: {
+                  type: 'object',
+                  properties: {
+                    hourlyCost: { type: 'number' },
+                    monthlyCost: { type: 'number' },
+                  },
+                },
+                specifications: {
+                  type: 'object',
+                  properties: {
+                    vCPU: { type: 'number' },
+                    memory: { type: 'number' },
+                    networkPerformance: { type: 'number' },
+                    dedicatedEbsThroughput: { type: 'number' },
+                    gpu: { type: 'number' },
+                    gpuMemory: { type: 'number' },
+                  },
+                },
+                pricingDetails: {
+                  type: 'object',
+                  properties: {
+                    family: { type: 'string' },
+                    size: { type: 'string' },
+                    operationCode: { type: 'string' },
+                    tenancyType: { type: 'string' },
+                    currentGeneration: { type: 'boolean' },
+                    instanceFamily: { type: 'string' },
+                    physicalProcessor: { type: 'string' },
+                    clockSpeed: { type: 'number' },
+                    processorFeatures: { type: 'string' },
+                  },
+                },
               },
             },
             volumes: {

@@ -127,8 +127,14 @@ describe('AWS Describe Instances Pricing Unit Tests', () => {
     const { awsDescribeInstances } = require('../src/tools/awsDescribeInstances');
     
     expect(awsDescribeInstances.outputSchema).toHaveProperty('properties.datapoints.items.properties.cost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.hourlyCost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.monthlyCost');
+    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.onDemandCost');
+    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.savingsPlanCost');
+    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost.properties.onDemandCost).toHaveProperty('properties.hourlyCost');
+    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost.properties.onDemandCost).toHaveProperty('properties.monthlyCost');
+    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost.properties.savingsPlanCost).toHaveProperty('properties.hourlyCost');
+    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost.properties.savingsPlanCost).toHaveProperty('properties.monthlyCost');
+    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.specifications');
+    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.pricingDetails');
   });
 
 

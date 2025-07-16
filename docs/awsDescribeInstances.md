@@ -30,8 +30,33 @@
     state: string                  // Instance state
     tags: object                   // Instance tags (excluding Name tag)
     cost?: {                       // Optional: Cost information
-      hourlyCost: number           // Hourly cost in USD
-      monthlyCost: number          // Monthly cost in USD (730 hours)
+      onDemandCost: {              // OnDemand pricing
+        hourlyCost: number         // Hourly OnDemand cost in USD
+        monthlyCost: number        // Monthly OnDemand cost in USD (730 hours)
+      }
+      savingsPlanCost: {           // 3-year no-upfront Compute Savings Plan pricing
+        hourlyCost: number         // Hourly Savings Plan cost in USD
+        monthlyCost: number        // Monthly Savings Plan cost in USD (730 hours)
+      }
+      specifications?: {           // Instance specifications from pricing data
+        vCPU: number               // Number of virtual CPUs
+        memory: number             // Memory in GiB
+        networkPerformance: number // Network performance in Mbps
+        dedicatedEbsThroughput: number // Dedicated EBS throughput in Mbps
+        gpu?: number               // Number of GPUs (if applicable)
+        gpuMemory?: number         // GPU memory in GB (if applicable)
+      }
+      pricingDetails?: {           // Detailed pricing information
+        family: string             // Instance family (e.g., "m5")
+        size: string               // Instance size (e.g., "large")
+        operationCode: string      // OS/software operation code
+        tenancyType: string        // "Shared" or "Dedicated"
+        currentGeneration: boolean // Whether it's current generation
+        instanceFamily: string     // Instance family category
+        physicalProcessor: string  // CPU manufacturer and model
+        clockSpeed: number         // Processor clock speed in GHz
+        processorFeatures: string  // CPU features (e.g., "AVX, AVX2")
+      }
     }
     volumes: Array<{               // Attached EBS volumes
       volumeId: string             // Volume ID
@@ -205,8 +230,31 @@ The following table shows the mapping between operating systems and their corres
         "Project": "WebApp"
       },
       "cost": {
-        "hourlyCost": 0.096,
-        "monthlyCost": 70.08
+        "onDemandCost": {
+          "hourlyCost": 0.096,
+          "monthlyCost": 70.08
+        },
+        "savingsPlanCost": {
+          "hourlyCost": 0.048,
+          "monthlyCost": 35.04
+        },
+        "specifications": {
+          "vCPU": 2,
+          "memory": 8,
+          "networkPerformance": 5000,
+          "dedicatedEbsThroughput": 650
+        },
+        "pricingDetails": {
+          "family": "m5",
+          "size": "large",
+          "operationCode": "",
+          "tenancyType": "Shared",
+          "currentGeneration": true,
+          "instanceFamily": "General Purpose",
+          "physicalProcessor": "Intel Xeon Platinum 8175",
+          "clockSpeed": 2.5,
+          "processorFeatures": "AVX, AVX2, Intel AVX-512"
+        }
       },
       "volumes": [
         {
