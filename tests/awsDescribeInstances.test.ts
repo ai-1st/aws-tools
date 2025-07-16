@@ -131,12 +131,7 @@ describe('AWS Describe Instances Pricing Unit Tests', () => {
     expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.monthlyCost');
   });
 
-  test('should have chartTitle in input schema', () => {
-    const { awsDescribeInstances } = require('../src/tools/awsDescribeInstances');
-    
-    expect(awsDescribeInstances.inputSchema).toHaveProperty('properties.chartTitle');
-    expect(awsDescribeInstances.inputSchema.properties.chartTitle.type).toBe('string');
-  });
+
 
   test('should have volumes in output schema', () => {
     const { awsDescribeInstances } = require('../src/tools/awsDescribeInstances');

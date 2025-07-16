@@ -12,7 +12,6 @@
     values: string[]
   }>
   maxResults?: number              // Optional: Maximum results (default: 1000)
-  chartTitle?: string              // Optional: Chart title for visualization
 }
 ```
 
@@ -49,8 +48,7 @@
 ```typescript
 // Get all instances in us-east-1
 {
-  region: "us-east-1",
-  chartTitle: "EC2 Instances in us-east-1"
+  region: "us-east-1"
 }
 
 // Get specific instances with filters
@@ -62,8 +60,7 @@
       name: "instance-state-name",
       values: ["running"]
     }
-  ],
-  chartTitle: "Running EC2 Instances"
+  ]
 }
 ```
 

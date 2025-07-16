@@ -16,7 +16,7 @@
   period: number                   // Required: Period in seconds
   statistic: "Sum" | "Average" | "Maximum" | "Minimum" | "SampleCount"  // Required
   region?: string                  // Optional: AWS region (default: us-east-1)
-  chartTitle?: string              // Optional: Chart title for visualization
+
 }
 ```
 
@@ -56,8 +56,7 @@
   startTime: "2024-01-01T00:00:00Z",
   endTime: "2024-01-31T23:59:59Z",
   period: 3600,  // 1 hour
-  statistic: "Sum",
-  chartTitle: "Lambda Invocations for my-function"
+  statistic: "Sum"
 }
 
 // Get EC2 CPU utilization
@@ -71,7 +70,6 @@
   startTime: "2024-12-01T00:00:00Z",
   endTime: "2024-12-01T23:59:59Z",
   period: 300,  // 5 minutes
-  statistic: "Average",
-  chartTitle: "EC2 CPU Utilization"
+  statistic: "Average"
 }
 ```

@@ -7,7 +7,7 @@
 {
   region?: string                  // Optional: AWS region (default: us-east-1)
   maxResults?: number              // Optional: Max recommendations (default: 50)
-  chartTitle?: string              // Optional: Chart title for visualization
+
 }
 ```
 
@@ -49,14 +49,12 @@
 // Get top 20 cost optimization recommendations
 {
   region: "us-east-1",
-  maxResults: 20,
-  chartTitle: "Top Cost Optimization Recommendations"
+  maxResults: 20
 }
 
 // Get all recommendations in a specific region
 {
   region: "us-west-2",
-  maxResults: 100,
-  chartTitle: "Cost Optimization Opportunities in us-west-2"
+  maxResults: 100
 }
 ```
