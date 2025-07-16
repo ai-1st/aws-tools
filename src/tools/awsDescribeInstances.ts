@@ -3,6 +3,159 @@
 import { EC2Client, DescribeInstancesCommand, DescribeVolumesCommand } from '@aws-sdk/client-ec2';
 import { Logger } from '../logger';
 import { Tool } from '../tool';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import * as zlib from 'zlib';
+import * as https from 'https';
+
+// Pricing data cache
+let pricingDataCache: any = null;
+let pricingDataLastFetch: number = 0;
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+async function downloadAndCachePricingData(logger?: Logger): Promise<any> {
+  const cacheDir = path.join(os.tmpdir(), 'aws-tools-cache');
+  const cacheFile = path.join(cacheDir, 'ec2_pricing.json');
+  
+  // Create cache directory if it doesn't exist
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+
+  // Check if cache is still valid
+  if (fs.existsSync(cacheFile)) {
+    const stats = fs.statSync(cacheFile);
+    const age = Date.now() - stats.mtime.getTime();
+    if (age < CACHE_DURATION) {
+      try {
+        const cachedData = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        logger?.debug('Using cached pricing data');
+        return cachedData;
+      } catch (error) {
+        logger?.warn('Failed to read cached pricing data, will download fresh copy');
+      }
+    }
+  }
+
+  // Download fresh pricing data
+  logger?.debug('Downloading fresh pricing data from S3');
+  const url = 'https://cloudfix-public-aws-pricing.s3.us-east-1.amazonaws.com/pricing/ec2_pricing.json.gz';
+  
+  return new Promise((resolve, reject) => {
+    https.get(url, (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to download pricing data: ${response.statusCode}`));
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () => {
+        try {
+          const compressedData = Buffer.concat(chunks);
+          const decompressedData = zlib.gunzipSync(compressedData);
+          const pricingData = JSON.parse(decompressedData.toString());
+          
+          // Cache the data
+          fs.writeFileSync(cacheFile, JSON.stringify(pricingData));
+          logger?.debug('Pricing data cached successfully');
+          
+          resolve(pricingData);
+        } catch (error) {
+          reject(new Error(`Failed to process pricing data: ${error}`));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error(`Failed to download pricing data: ${error.message}`));
+    });
+  });
+}
+
+async function getPricingData(logger?: Logger): Promise<any> {
+  if (pricingDataCache && (Date.now() - pricingDataLastFetch) < CACHE_DURATION) {
+    return pricingDataCache;
+  }
+
+  try {
+    pricingDataCache = await downloadAndCachePricingData(logger);
+    pricingDataLastFetch = Date.now();
+    return pricingDataCache;
+  } catch (error) {
+    logger?.warn('Failed to fetch pricing data, continuing without cost information:', error);
+    return null;
+  }
+}
+
+function getOperationCode(platform: string): string {
+  if (!platform) return '';
+  
+  const platformLower = platform.toLowerCase();
+  if (platformLower.includes('windows')) {
+    if (platformLower.includes('sql server enterprise')) return '0102';
+    if (platformLower.includes('sql server standard')) return '0006';
+    if (platformLower.includes('sql server web')) return '0202';
+    if (platformLower.includes('byol')) return '0800';
+    return '0002';
+  } else if (platformLower.includes('red hat')) {
+    if (platformLower.includes('sql server enterprise')) return '0110';
+    if (platformLower.includes('sql server standard')) return '0014';
+    if (platformLower.includes('sql server web')) return '0210';
+    if (platformLower.includes('byol')) return '00g0';
+    return '0010';
+  } else if (platformLower.includes('suse')) {
+    return '000g';
+  } else if (platformLower.includes('linux')) {
+    if (platformLower.includes('sql server enterprise')) return '0100';
+    if (platformLower.includes('sql server standard')) return '0004';
+    if (platformLower.includes('sql server web')) return '0200';
+    return '';
+  }
+  
+  return '';
+}
+
+function calculateInstanceCost(instanceType: string, platform: string, region: string, tenancy: string, pricingData: any): { hourlyCost: number; monthlyCost: number } | null {
+  try {
+    // Parse instance type (e.g., "m5.large" -> family: "m5", size: "large")
+    const match = instanceType.match(/^([a-z0-9]+)\.(.+)$/);
+    if (!match) return null;
+    
+    const [, family, size] = match;
+    const operationCode = getOperationCode(platform);
+    const tenancyType = tenancy === 'dedicated' ? 'Dedicated' : 'Shared';
+    
+    // Find pricing in the data structure
+    const familyData = pricingData[family];
+    if (!familyData || !familyData.sizes || !familyData.sizes[size]) {
+      return null;
+    }
+    
+    const sizeData = familyData.sizes[size];
+    if (!sizeData.operations || !sizeData.operations[operationCode]) {
+      return null;
+    }
+    
+    const regionPricing = sizeData.operations[operationCode][region];
+    if (!regionPricing) return null;
+    
+    // Parse pricing string (comma-separated values)
+    const prices = regionPricing.split(',').map((p: string) => parseFloat(p) || 0);
+    
+    // Get OnDemand price (position 0 for Shared, position 7 for Dedicated)
+    const priceIndex = tenancyType === 'Dedicated' ? 7 : 0;
+    const hourlyCost = prices[priceIndex];
+    
+    if (hourlyCost <= 0) return null;
+    
+    return {
+      hourlyCost,
+      monthlyCost: hourlyCost * 730 // 730 hours per month (average)
+    };
+  } catch (error) {
+    return null;
+  }
+}
 
 async function fetchVolumeData(ec2Client: EC2Client, instanceIds: string[], logger?: Logger): Promise<{ [instanceId: string]: any[] }> {
   try {
@@ -67,6 +220,12 @@ function generateInstanceSummary(instances: any[]): string {
       uptimeInfo = `uptime ${uptimeHours}h`;
     }
     
+    // Format cost information
+    let costInfo = '';
+    if (instance.cost) {
+      costInfo = `, ~$${instance.cost.hourlyCost.toFixed(4)}/hr ($${instance.cost.monthlyCost.toFixed(2)}/mo)`;
+    }
+    
     // Format volumes concisely for cost analysis
     let volumeInfo = '';
     if (instance.volumes && instance.volumes.length > 0) {
@@ -83,7 +242,7 @@ function generateInstanceSummary(instances: any[]): string {
       tagInfo = `, tags: ${tagPairs.join(', ')}`;
     }
     
-    return `"${instanceName}" (${state}): ${instanceType} ${platform}, ${uptimeInfo}${volumeInfo}${tagInfo}`;
+    return `"${instanceName}" (${state}): ${instanceType} ${platform}, ${uptimeInfo}${costInfo}${volumeInfo}${tagInfo}`;
   });
 
   return instanceLines.join('\n');
@@ -110,6 +269,7 @@ export const awsDescribeInstances: Tool = {
         description: 'Filters to apply to the describe operation',
       },
       maxResults: { type: 'number', description: 'Maximum number of results to return (default: 1000)' },
+      chartTitle: { type: 'string', description: 'Optional chart title for visualization' },
     },
     required: ['region'],
   },
@@ -131,6 +291,13 @@ export const awsDescribeInstances: Tool = {
             uptimeHours: { type: 'number' },
             state: { type: 'string' },
             tags: { type: 'object' },
+            cost: {
+              type: 'object',
+              properties: {
+                hourlyCost: { type: 'number' },
+                monthlyCost: { type: 'number' },
+              },
+            },
             volumes: {
               type: 'array',
               items: {
@@ -210,11 +377,28 @@ export const awsDescribeInstances: Tool = {
         ? await fetchVolumeData(ec2Client, instanceIds, logger)
         : {};
 
-      // Merge volume data with instance information
-      const enrichedInstances = instances.map(instance => ({
-        ...instance,
-        volumes: instance?.instanceId ? (volumesByInstance[instance.instanceId] || []) : [],
-      }));
+      // Get pricing data
+      const pricingData = await getPricingData(logger);
+
+      // Merge volume data and add cost information
+      const enrichedInstances = instances.map(instance => {
+        if (!instance) return null;
+        
+        const volumes = instance.instanceId ? (volumesByInstance[instance.instanceId] || []) : [];
+        const cost = pricingData ? calculateInstanceCost(
+          instance.instanceType || '',
+          instance.platform || '',
+          instance.region || '',
+          instance.tenancy || '',
+          pricingData
+        ) : null;
+        
+        return {
+          ...instance,
+          volumes,
+          cost,
+        };
+      }).filter(Boolean);
       
       const summary = generateInstanceSummary(enrichedInstances);
       
