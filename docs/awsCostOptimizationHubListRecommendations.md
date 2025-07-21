@@ -12,7 +12,8 @@
 **Output Schema**:
 ```typescript
 {
-  recommendations: Array<{         // List of recommendations
+  summary: string                  // Text summary with top 30 recommendations (one per line)
+  datapoints: Array<{              // List of recommendations
     id: string                     // Recommendation ID
     type: string                   // Recommendation type
     title: string                  // Recommendation title
@@ -26,19 +27,6 @@
     action?: string                // Recommended action
     reason?: string                // Reason for recommendation
   }>
-  count: number                    // Number of recommendations returned
-  totalFetched: number             // Total recommendations available
-  totalEstimatedMonthlySavings: {  // Total potential monthly savings
-    amount: string
-    unit: string
-  }
-  summary: {                       // Summary statistics
-    totalRecommendations: number
-    topRecommendationsReturned: number
-    averageSavingsPerRecommendation: string
-    highestSavings: string
-    lowestSavings: string
-  }
 }
 ```
 

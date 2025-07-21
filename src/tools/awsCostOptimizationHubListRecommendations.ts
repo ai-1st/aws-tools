@@ -12,19 +12,20 @@ function generateRecommendationsSummary(recommendations: any[], totalFetched: nu
   const totalRecommendations = recommendations.length;
   const totalMonthlySavings = parseFloat(totalSavings.amount);
   
-  const topRecommendations = recommendations.slice(0, 3);
-  const topSavings = topRecommendations.map(rec => ({
-    title: rec.title,
-    savings: parseFloat(rec.estimatedMonthlySavings || '0')
-  }));
+  // Get top 30 recommendations
+  const topRecommendations = recommendations.slice(0, 30);
   
-  const topSavingsText = topSavings
-    .map(rec => `${rec.title} ($${rec.savings.toFixed(2)}/month)`)
-    .join(', ');
+  // Create summary with one recommendation per line
+  const recommendationsList = topRecommendations
+    .map(rec => {
+      const savings = parseFloat(rec.estimatedMonthlySavings || '0');
+      return `${rec.type}: ${rec.title} ($${savings.toFixed(2)}/month savings)`;
+    })
+    .join('\n');
   
   return `Found ${totalRecommendations} cost optimization recommendations out of ${totalFetched} total. ` +
-         `Total potential monthly savings: $${totalMonthlySavings.toFixed(2)}. ` +
-         `Top recommendations: ${topSavingsText}.`;
+         `Total potential monthly savings: $${totalMonthlySavings.toFixed(2)}.\n\n` +
+         `Top recommendations:\n${recommendationsList}`;
 }
 
 export const awsCostOptimizationHubListRecommendations: Tool = {
@@ -58,25 +59,6 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
             action: { type: 'string' },
             reason: { type: 'string' },
           },
-        },
-      },
-      count: { type: 'number' },
-      totalFetched: { type: 'number' },
-      totalEstimatedMonthlySavings: {
-        type: 'object',
-        properties: {
-          amount: { type: 'string' },
-          unit: { type: 'string' },
-        },
-      },
-      summaryStats: {
-        type: 'object',
-        properties: {
-          totalRecommendations: { type: 'number' },
-          topRecommendationsReturned: { type: 'number' },
-          averageSavingsPerRecommendation: { type: 'string' },
-          highestSavings: { type: 'string' },
-          lowestSavings: { type: 'string' },
         },
       },
     },
@@ -116,17 +98,17 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
       logger?.debug('awsCostOptimizationHubListRecommendations raw data:', data);
       const recommendations = data.items?.map(item => ({
         id: item.recommendationId,
-        type: (item as any).type,
-        title: (item as any).name,
-        description: (item as any).description,
-        estimatedMonthlySavings: (item as any).estimatedMonthlySavings?.value,
-        estimatedAnnualSavings: (item as any).estimatedYearlySavings?.value,
+        type: item.actionType,
+        title: item.recommendedResourceSummary || item.actionType,
+        description: item.recommendedResourceSummary,
+        estimatedMonthlySavings: item.estimatedMonthlySavings?.toString(),
+        estimatedAnnualSavings: ((item.estimatedMonthlySavings || 0) * 12)?.toString(),
         resourceId: item.resourceId,
-        resourceType: (item as any).resourceType,
-        region: (item as any).awsRegion,
-        service: (item as any).source,
-        action: (item as any).action,
-        reason: (item as any).reason,
+        resourceType: item.currentResourceType,
+        region: item.region,
+        service: item.source,
+        action: item.actionType,
+        reason: `Estimated ${item.estimatedSavingsPercentage}% savings`,
       })) || [];
 
       const totalEstimatedMonthlySavings = recommendations?.reduce((acc: number, r: any) => acc + parseFloat(r.estimatedMonthlySavings || '0'), 0) || 0;
@@ -144,18 +126,9 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
       const output = {
         summary,
         datapoints: recommendations,
-        count: recommendations?.length,
-        totalFetched: data.items?.length,
-        totalEstimatedMonthlySavings: totalSavings,
-        summaryStats: {
-          totalRecommendations: data.items?.length,
-          topRecommendationsReturned: recommendations?.length,
-          averageSavingsPerRecommendation: (totalEstimatedMonthlySavings / (recommendations?.length || 1)).toFixed(2),
-          highestSavings: highestSavings.toFixed(2),
-          lowestSavings: lowestSavings.toFixed(2),
-        },
       };
-      logger?.debug('awsCostOptimizationHubListRecommendations output:', output);
+      logger?.debug('awsCostOptimizationHubListRecommendations summary:\n', output.summary);
+      logger?.debug('awsCostOptimizationHubListRecommendations datapoints:\n', output.datapoints);
       return output;
     } catch (error) {
       logger?.error('Error listing cost optimization hub recommendations:', error);
