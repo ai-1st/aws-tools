@@ -4,4 +4,5 @@ dist
 output
 output.txt
 .env
+tests/svg
 
