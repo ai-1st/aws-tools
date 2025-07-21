@@ -75,7 +75,7 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
         },
         required: ['accessKeyId', 'secretAccessKey'],
       },
-      region: { type: 'string', description: 'AWS region (default: us-east-1)' },
+      region: { type: 'string', description: 'AWS region' },
       logger: { type: 'object' },
     },
     required: ['credentials', 'region'],

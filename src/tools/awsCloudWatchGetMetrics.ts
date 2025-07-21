@@ -68,9 +68,6 @@ export const awsCloudWatchGetMetrics: Tool = {
           },
         },
       },
-      label: { type: 'string' },
-      namespace: { type: 'string' },
-      metricName: { type: 'string' },
     },
   },
   configSchema: {
@@ -85,7 +82,7 @@ export const awsCloudWatchGetMetrics: Tool = {
         },
         required: ['accessKeyId', 'secretAccessKey'],
       },
-      region: { type: 'string', description: 'AWS region (defaults to us-east-1)' },
+      region: { type: 'string', description: 'AWS region' },
       logger: { type: 'object' },
     },
     required: ['credentials', 'region'],
@@ -134,9 +131,6 @@ export const awsCloudWatchGetMetrics: Tool = {
       const output = {
         summary,
         datapoints,
-        label: result?.Label,
-        namespace,
-        metricName,
       };
       logger?.debug('awsCloudWatchGetMetrics output:', output);
       return output;

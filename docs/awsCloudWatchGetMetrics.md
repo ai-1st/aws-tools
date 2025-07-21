@@ -21,14 +21,12 @@
 **Output Schema**:
 ```typescript
 {
+  summary: string                  // Text summary of the CloudWatch metrics
   datapoints: Array<{              // Metric data points
     Timestamp: string              // ISO timestamp
     Value: number                  // Metric value
     Unit: string                   // Unit of measurement
   }>
-  label: string                    // Metric label
-  namespace: string                // AWS namespace
-  metricName: string               // Metric name
 }
 ```
 
