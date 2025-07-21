@@ -9,9 +9,10 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "jest --verbose",
-    "test:verbose": "VERBOSE=true jest --verbose",
-    "test:file": "jest --verbose"
+    "test": "vitest run",
+    "test:verbose": "VERBOSE=true vitest run --reporter=verbose",
+    "test:file": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "aws",
@@ -24,15 +25,13 @@
   ],
   "author": "Dmitry Degtyarev",
   "license": "MIT",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
-    "@types/jest": "^30.0.0",
     "@types/vega": "^0.0.30",
-    "jest": "^30.0.4",
-    "ts-jest": "^29.4.0",
     "typescript": "^5.8.3",
     "vega": "^6.1.2",
-    "vega-lite": "^6.2.0"
+    "vega-lite": "^6.2.0",
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.844.0",

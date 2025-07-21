@@ -26,9 +26,9 @@ function generateMetricsSummary(datapoints: any[], namespace: string, metricName
          `Data points: ${datapoints.length}.`;
 }
 
-function generateVegaLiteChart(datapoints: any[], namespace: string, metricName: string): string {
+function generateVegaLiteChart(datapoints: any[], namespace: string, metricName: string) {
   if (!datapoints || datapoints.length === 0) {
-    return '';
+    return {};
   }
 
   // Transform datapoints for Vega-Lite
@@ -100,7 +100,7 @@ function generateVegaLiteChart(datapoints: any[], namespace: string, metricName:
     }
   };
 
-  return JSON.stringify(vegaLiteSpec, null, 2);
+  return vegaLiteSpec;
 }
 
 export const awsCloudWatchGetMetrics: Tool = {
@@ -145,7 +145,7 @@ export const awsCloudWatchGetMetrics: Tool = {
           },
         },
       },
-      chart: { type: 'string', description: 'Vega-Lite specification for generating an SVG chart' },
+      chart: { type: 'object', description: 'Vega-Lite TopLevelSpec object for generating an SVG chart' },
     },
   },
   configSchema: {

@@ -114,9 +114,9 @@ describe('AWS Describe Instances E2E Tests', () => {
 });
 
 describe('AWS Describe Instances Pricing Unit Tests', () => {
-  test('should have correct output schema with cost information', () => {
+  test('should have correct output schema with cost information', async () => {
     // Import the tool directly to test schema
-    const { awsDescribeInstances } = require('../src/tools/awsDescribeInstances');
+    const { awsDescribeInstances } = await import('../src/tools/awsDescribeInstances');
     
     expect(awsDescribeInstances.outputSchema).toHaveProperty('properties.datapoints.items.properties.cost');
     expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.onDemandCost');
@@ -131,16 +131,16 @@ describe('AWS Describe Instances Pricing Unit Tests', () => {
 
 
 
-  test('should have volumes in output schema', () => {
-    const { awsDescribeInstances } = require('../src/tools/awsDescribeInstances');
+  test('should have volumes in output schema', async () => {
+    const { awsDescribeInstances } = await import('../src/tools/awsDescribeInstances');
     
     expect(awsDescribeInstances.outputSchema).toHaveProperty('properties.datapoints.items.properties.volumes');
     expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.volumes.type).toBe('array');
   });
 
-  test('should calculate costs correctly with mock pricing data', () => {
+  test('should calculate costs correctly with mock pricing data', async () => {
     // Import the internal functions for testing
-    const { awsDescribeInstances } = require('../src/tools/awsDescribeInstances');
+    const { awsDescribeInstances } = await import('../src/tools/awsDescribeInstances');
     
     // Mock pricing data structure
     const mockPricingData = {
