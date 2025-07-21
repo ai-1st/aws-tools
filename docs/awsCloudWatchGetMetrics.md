@@ -15,8 +15,6 @@
   endTime: string                  // Required: End time (ISO format)
   period: number                   // Required: Period in seconds
   statistic: "Sum" | "Average" | "Maximum" | "Minimum" | "SampleCount"  // Required
-  region?: string                  // Optional: AWS region (default: us-east-1)
-
 }
 ```
 

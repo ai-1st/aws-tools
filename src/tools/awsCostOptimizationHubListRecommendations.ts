@@ -33,7 +33,6 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
   inputSchema: {
     type: 'object',
     properties: {
-      region: { type: 'string', description: 'AWS region (default: us-east-1)' },
       maxResults: { type: 'number', description: 'Maximum number of recommendations to return (default: 50)' },
     },
   },
@@ -94,18 +93,19 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
         },
         required: ['accessKeyId', 'secretAccessKey'],
       },
+      region: { type: 'string', description: 'AWS region (default: us-east-1)' },
       logger: { type: 'object' },
     },
-    required: ['credentials'],
+    required: ['credentials', 'region'],
   },
   defaultConfig: {},
-  async invoke(input: any, config: { credentials?: any; logger?: Logger }): Promise<any> {
-    const { region, maxResults } = input;
-    const logger = config.logger;
+  async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
+    const { maxResults } = input;
+    const { region, logger } = config;
 
     logger?.debug('awsCostOptimizationHubListRecommendations input:', input);
 
-    const client = new CostOptimizationHubClient({ region: region || 'us-east-1', credentials: config.credentials });
+    const client = new CostOptimizationHubClient({ region, credentials: config.credentials });
 
     const command = new ListRecommendationsCommand({
       maxResults: maxResults || 50,

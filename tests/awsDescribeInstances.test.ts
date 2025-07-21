@@ -11,9 +11,7 @@ describe('AWS Describe Instances E2E Tests', () => {
   });
 
   test('should describe EC2 instances', async () => {
-    const input = {
-      region: 'us-east-1',
-    };
+    const input = {};
     const result = await invoke('awsDescribeInstances', input, config);
     expect(result).toHaveProperty('summary');
     expect(result).toHaveProperty('datapoints');
@@ -21,9 +19,7 @@ describe('AWS Describe Instances E2E Tests', () => {
   }, 30000);
 
   test('should include volume data in instance information', async () => {
-    const input = {
-      region: 'us-east-1',
-    };
+    const input = {};
     const result = await invoke('awsDescribeInstances', input, config);
 
     expect(result).toHaveProperty('summary');
@@ -48,9 +44,7 @@ describe('AWS Describe Instances E2E Tests', () => {
   }, 30000);
 
   test('should include volume information in individual instance lines', async () => {
-    const input = {
-      region: 'us-east-1',
-    };
+    const input = {};
     const result = await invoke('awsDescribeInstances', input, config);
 
     expect(result).toHaveProperty('summary');
@@ -79,7 +73,6 @@ describe('AWS Describe Instances E2E Tests', () => {
 
   test('should handle instances with no volumes gracefully', async () => {
     const input = {
-      region: 'us-east-1',
       filters: [
         {
           name: 'instance-state-name',
@@ -102,12 +95,11 @@ describe('AWS Describe Instances E2E Tests', () => {
   }, 30000);
 
   test('should handle volume fetch failures gracefully', async () => {
-    // Test with an invalid region to potentially trigger volume fetch failure
-    const input = {
-      region: 'us-west-1', // Different region that might not have instances
-    };
+    // Test with a different region to potentially trigger volume fetch failure
+    const input = {};
+    const configWithDifferentRegion = { ...config, region: 'us-west-1' };
 
-    const result = await invoke('awsDescribeInstances', input, config);
+    const result = await invoke('awsDescribeInstances', input, configWithDifferentRegion);
 
     expect(result).toHaveProperty('summary');
     expect(result).toHaveProperty('datapoints');

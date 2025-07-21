@@ -50,7 +50,6 @@ export const awsCloudWatchGetMetrics: Tool = {
       endTime: { type: 'string', description: 'End time in ISO format (e.g., "2024-01-31T23:59:59Z")' },
       period: { type: 'number', description: 'Period in seconds (300=5min, 3600=1hour, 86400=1day)' },
       statistic: { type: 'string', enum: ['Sum', 'Average', 'Maximum', 'Minimum', 'SampleCount'], description: 'Statistic to retrieve' },
-      region: { type: 'string', description: 'AWS region (defaults to us-east-1)' },
     },
     required: ['namespace', 'metricName', 'startTime', 'endTime', 'period', 'statistic'],
   },
@@ -86,18 +85,19 @@ export const awsCloudWatchGetMetrics: Tool = {
         },
         required: ['accessKeyId', 'secretAccessKey'],
       },
+      region: { type: 'string', description: 'AWS region (defaults to us-east-1)' },
       logger: { type: 'object' },
     },
-    required: ['credentials'],
+    required: ['credentials', 'region'],
   },
   defaultConfig: {},
-  async invoke(input: any, config: { credentials?: any; logger?: Logger }): Promise<any> {
-    const { namespace, metricName, dimensions, startTime, endTime, period, statistic, region } = input;
-    const logger = config.logger;
+  async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
+    const { namespace, metricName, dimensions, startTime, endTime, period, statistic } = input;
+    const { region, logger } = config;
 
     logger?.debug('awsCloudWatchGetMetrics input:', input);
 
-    const cloudWatchClient = new CloudWatchClient({ region: region || 'us-east-1', credentials: config.credentials });
+    const cloudWatchClient = new CloudWatchClient({ region, credentials: config.credentials });
 
     const command = new GetMetricDataCommand({
       MetricDataQueries: [

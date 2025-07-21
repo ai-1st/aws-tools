@@ -322,7 +322,6 @@ export const awsDescribeInstances: Tool = {
   inputSchema: {
     type: 'object',
     properties: {
-      region: { type: 'string', description: 'AWS region where instances are located (e.g., "us-east-1")' },
       instanceIds: { type: 'array', items: { type: 'string' }, description: 'Specific instance IDs to describe' },
       filters: {
         type: 'array',
@@ -338,7 +337,6 @@ export const awsDescribeInstances: Tool = {
       },
       maxResults: { type: 'number', description: 'Maximum number of results to return (default: 1000)' },
     },
-    required: ['region'],
   },
   outputSchema: {
     type: 'object',
@@ -432,14 +430,15 @@ export const awsDescribeInstances: Tool = {
         },
         required: ['accessKeyId', 'secretAccessKey'],
       },
+      region: { type: 'string', description: 'AWS region where instances are located (e.g., "us-east-1")' },
       logger: { type: 'object' },
     },
-    required: ['credentials'],
+    required: ['credentials', 'region'],
   },
   defaultConfig: {},
-  async invoke(input: any, config: { credentials?: any; logger?: Logger }): Promise<any> {
-    const { region, instanceIds, filters, maxResults } = input;
-    const logger = config.logger;
+  async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
+    const { instanceIds, filters, maxResults } = input;
+    const { region, logger } = config;
 
     logger?.debug('awsDescribeInstances input:', input);
 

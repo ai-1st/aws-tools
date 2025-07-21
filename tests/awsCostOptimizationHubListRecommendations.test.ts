@@ -11,9 +11,7 @@ describe('AWS Cost Optimization Hub List Recommendations E2E Tests', () => {
   });
 
   test('should list cost optimization hub recommendations', async () => {
-    const input = {
-      region: 'us-east-1',
-    };
+    const input = {};
     const result = await invoke('awsCostOptimizationHubListRecommendations', input, config);
     expect(result).toHaveProperty('summary');
     expect(result).toHaveProperty('datapoints');

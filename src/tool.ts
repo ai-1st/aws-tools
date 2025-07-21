@@ -9,5 +9,5 @@ export interface Tool {
   outputSchema: object;
   configSchema?: object;
   defaultConfig?: object;
-  invoke(input: any, config: { credentials?: any; logger?: Logger }): Promise<any>;
+  invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any>;
 }

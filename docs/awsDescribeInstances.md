@@ -5,7 +5,6 @@
 **Input Schema**:
 ```typescript
 {
-  region: string                    // Required: AWS region (e.g., "us-east-1")
   instanceIds?: string[]           // Optional: Specific instance IDs to describe
   filters?: Array<{                // Optional: AWS EC2 filters
     name: string
@@ -71,14 +70,11 @@
 
 **Example Usage**:
 ```typescript
-// Get all instances in us-east-1
-{
-  region: "us-east-1"
-}
+// Get all instances (region specified in config)
+{}
 
 // Get specific instances with filters
 {
-  region: "us-west-2",
   instanceIds: ["i-1234567890abcdef0"],
   filters: [
     {

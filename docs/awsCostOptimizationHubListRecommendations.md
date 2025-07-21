@@ -5,9 +5,7 @@
 **Input Schema**:
 ```typescript
 {
-  region?: string                  // Optional: AWS region (default: us-east-1)
   maxResults?: number              // Optional: Max recommendations (default: 50)
-
 }
 ```
 
@@ -48,13 +46,11 @@
 ```typescript
 // Get top 20 cost optimization recommendations
 {
-  region: "us-east-1",
   maxResults: 20
 }
 
-// Get all recommendations in a specific region
+// Get all recommendations (region specified in config)
 {
-  region: "us-west-2",
   maxResults: 100
 }
 ```

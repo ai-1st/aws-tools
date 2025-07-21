@@ -257,14 +257,15 @@ export const awsGetCostAndUsage: Tool = {
         },
         required: ['accessKeyId', 'secretAccessKey'],
       },
+      region: { type: 'string', description: 'AWS region (default: us-east-1 for Cost Explorer)' },
       logger: { type: 'object' },
     },
-    required: ['credentials'],
+    required: ['credentials', 'region'],
   },
   defaultConfig: {},
-  async invoke(input: any, config: { credentials?: any; logger?: Logger }): Promise<any> {
+  async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
     const { lookBack, granularity, groupBy, filter } = input;
-    const logger = config.logger;
+    const { region, logger } = config;
 
     // Set default lookBack values
     const defaultLookBack = granularity === 'DAILY' ? 30 : 6;
@@ -278,7 +279,7 @@ export const awsGetCostAndUsage: Tool = {
 
     logger?.debug('awsGetCostAndUsage input:', { ...input, calculatedStartDate: startDate, calculatedEndDate: endDate, actualGroupBy });
 
-    const costExplorerClient = new CostExplorerClient({ region: 'us-east-1', credentials: config.credentials });
+    const costExplorerClient = new CostExplorerClient({ region, credentials: config.credentials });
 
     const record_type_filter: Expression = {
       Not: {

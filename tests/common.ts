@@ -33,6 +33,7 @@ export function loadTestConfig() {
       secretAccessKey: creds.Credentials.SecretAccessKey,
       sessionToken: creds.Credentials.SessionToken,
     },
+    region: 'us-east-1',
     logger: new TestLogger(),
   };
 }
