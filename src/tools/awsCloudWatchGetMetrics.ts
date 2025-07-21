@@ -26,6 +26,83 @@ function generateMetricsSummary(datapoints: any[], namespace: string, metricName
          `Data points: ${datapoints.length}.`;
 }
 
+function generateVegaLiteChart(datapoints: any[], namespace: string, metricName: string): string {
+  if (!datapoints || datapoints.length === 0) {
+    return '';
+  }
+
+  // Transform datapoints for Vega-Lite
+  const chartData = datapoints.map(dp => ({
+    timestamp: dp.Timestamp,
+    value: dp.Value,
+    unit: dp.Unit
+  }));
+
+  const vegaLiteSpec = {
+    $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    description: `${metricName} metrics for ${namespace}`,
+    width: 600,
+    height: 300,
+    data: {
+      values: chartData
+    },
+    mark: {
+      type: 'line',
+      point: true
+    },
+    encoding: {
+      x: {
+        field: 'timestamp',
+        type: 'temporal',
+        title: 'Time',
+        axis: {
+          format: '%Y-%m-%d',
+          labelAngle: -45
+        }
+      },
+      y: {
+        field: 'value',
+        type: 'quantitative',
+        title: metricName,
+        scale: {
+          zero: false
+        }
+      },
+      tooltip: [
+        {
+          field: 'timestamp',
+          type: 'temporal',
+          title: 'Time',
+          format: '%Y-%m-%d %H:%M:%S'
+        },
+        {
+          field: 'value',
+          type: 'quantitative',
+          title: metricName,
+          format: ',.2f'
+        },
+        {
+          field: 'unit',
+          type: 'nominal',
+          title: 'Unit'
+        }
+      ]
+    },
+    config: {
+      axis: {
+        labelFontSize: 12,
+        titleFontSize: 14
+      },
+      title: {
+        fontSize: 16,
+        fontWeight: 'bold'
+      }
+    }
+  };
+
+  return JSON.stringify(vegaLiteSpec, null, 2);
+}
+
 export const awsCloudWatchGetMetrics: Tool = {
   name: 'awsCloudWatchGetMetrics',
   description: 'Retrieve CloudWatch metrics for any AWS service with flexible dimensions and time periods. Essential for analyzing performance trends, usage patterns, and operational metrics.',
@@ -68,6 +145,7 @@ export const awsCloudWatchGetMetrics: Tool = {
           },
         },
       },
+      chart: { type: 'string', description: 'Vega-Lite specification for generating an SVG chart' },
     },
   },
   configSchema: {
@@ -127,10 +205,12 @@ export const awsCloudWatchGetMetrics: Tool = {
       })) || [];
       
       const summary = generateMetricsSummary(datapoints, namespace, metricName);
+      const chart = generateVegaLiteChart(datapoints, namespace, metricName);
       
       const output = {
         summary,
         datapoints,
+        chart,
       };
       logger?.debug('awsCloudWatchGetMetrics output:', output);
       return output;

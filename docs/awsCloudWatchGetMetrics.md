@@ -27,6 +27,7 @@
     Value: number                  // Metric value
     Unit: string                   // Unit of measurement
   }>
+  chart: string                    // Vega-Lite specification for generating an SVG chart
 }
 ```
 
@@ -68,4 +69,20 @@
   period: 300,  // 5 minutes
   statistic: "Average"
 }
+```
+
+**Chart Usage**:
+The `chart` field contains a Vega-Lite specification that can be used to generate an SVG chart. You can use it with Vega-Lite libraries:
+
+```javascript
+// Using vega-lite library
+import { compile } from 'vega-lite';
+import { render } from 'vega';
+
+const result = await invoke('awsCloudWatchGetMetrics', input, config);
+const vegaSpec = compile(JSON.parse(result.chart)).spec;
+const view = new vega.View(vega.parse(vegaSpec))
+  .renderer('svg')
+  .initialize('#chart-container')
+  .run();
 ```
