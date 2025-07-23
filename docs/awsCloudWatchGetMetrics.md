@@ -71,18 +71,60 @@
 }
 ```
 
-**Chart Usage**:
-The `chart` field contains a Vega-Lite specification that can be used to generate an SVG chart. You can use it with Vega-Lite libraries:
+## Chart Features
+
+The tool generates Vega-Lite chart specifications for time series visualization of CloudWatch metrics.
+
+### Chart Configuration
+- **Chart Type**: Line chart showing metric values over time
+- **Dimensions**: 800px width × 400px height
+- **Color Scheme**: Single color line for clean presentation
+- **Tooltip**: Interactive tooltips showing timestamp and metric value
+
+### Time Series Visualization
+- **X-axis**: Time-based with automatic formatting
+- **Y-axis**: Metric values with appropriate units
+- **Line styling**: Smooth curves with point markers
+- **Grid lines**: Subtle background grid for better readability
+
+### Chart Usage
+The `chart` field contains a Vega-Lite specification that can be used to generate charts:
 
 ```javascript
-// Using vega-lite library
-import { compile } from 'vega-lite';
-import { render } from 'vega';
+// Using chart generation utilities
+import { generateChartFiles } from '@ddegtyarev/aws-tools';
 
 const result = await invoke('awsCloudWatchGetMetrics', input, config);
-const vegaSpec = compile(JSON.parse(result.chart)).spec;
-const view = new vega.View(vega.parse(vegaSpec))
-  .renderer('svg')
-  .initialize('#chart-container')
-  .run();
+if (result.chart) {
+  await generateChartFiles(result.chart, 'lambda-invocations', './charts');
+  // Creates PNG and SVG files
+}
+```
+
+### Example Chart Specification
+```json
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "CloudWatch Metrics Time Series",
+  "width": 800,
+  "height": 400,
+  "data": { "values": [...] },
+  "mark": {
+    "type": "line",
+    "point": true,
+    "tooltip": true
+  },
+  "encoding": {
+    "x": {
+      "field": "Timestamp",
+      "type": "temporal",
+      "title": "Time"
+    },
+    "y": {
+      "field": "Value",
+      "type": "quantitative",
+      "title": "Metric Value"
+    }
+  }
+}
 ```

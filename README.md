@@ -1,15 +1,18 @@
 # AWS Tools Documentation
 
-This project contains AWS API integration tools for use in Vercel AI SDK. This project builds an npm module.
-Author is Dmitry Degtyarev.
+This project contains AWS API integration tools for use in Vercel AI SDK. 
 
 AWS API may produce thousands of datapoints which could easily overflow LLM context if used as-is.
 
 The important design decision is that tools return their responses in two formats:
 - a text summary intended to be added into the LLM context
 - a JSON with exact data points to be used for charting
+- a chart specification using vega-lite format
 
 The text summary is produced with the help of heuristics tailored for each tool.
+
+This project builds an npm module.
+Author is Dmitry Degtyarev.
 
 ## Table of Contents
 
@@ -34,7 +37,7 @@ pricing (OnDemand and 3-year Compute Savings Plan), and attached volumes.
 ## Installation & Setup
 
 ```bash
-npm install aws-tools
+npm install @ddegtyarev/aws-tools
 ```
 
 ### Development Commands
@@ -43,11 +46,11 @@ npm install aws-tools
 # Run all tests
 npm test
 
-# Run all tests with verbose output
-npm run test:verbose
+# Run all tests
+npm run test
 
 # Run a specific test file
-npm run test:file tests/awsGetCostAndUsage.test.ts
+npm run test tests/awsGetCostAndUsage.test.ts
 ```
 
 ### Prerequisites
@@ -124,33 +127,12 @@ All tools accept a configuration object with the following structure:
 }
 ```
 
-### Credentials
-
-AWS credentials can be provided in several ways:
-
-1. **Direct configuration** (as shown above)
-2. **Environment variables**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
-3. **AWS credentials file**: `~/.aws/credentials`
-4. **IAM roles**: When running on EC2 or ECS
-
 ## AWS Tools Detailed Documentation
 
-- [awsDescribeInstances](./docs/awsDescribeInstances.md)
-- [awsGetCostAndUsage](./docs/awsGetCostAndUsage.md)
-- [awsCloudWatchGetMetrics](./docs/awsCloudWatchGetMetrics.md)
-- [awsCostOptimizationHubListRecommendations](./docs/awsCostOptimizationHubListRecommendations.md)
-
-### Tool Features by Category
-
-**EC2 Instance Management**:
-- `awsDescribeInstances` - Get detailed EC2 instance information with dual pricing (OnDemand vs Savings Plans)
-
-**Cost Analysis**:
-- `awsGetCostAndUsage` - Retrieve cost and usage data with intelligent summarization and chart generation
-- `awsCostOptimizationHubListRecommendations` - Get cost optimization recommendations
-
-**Monitoring & Metrics**:
-- `awsCloudWatchGetMetrics` - Retrieve CloudWatch metrics with flexible dimensions and time periods
+- [awsDescribeInstances](./docs/awsDescribeInstances.md) - Get detailed EC2 instance information with dual pricing (OnDemand vs Savings Plans)
+- [awsGetCostAndUsage](./docs/awsGetCostAndUsage.md) - Retrieve cost and usage data with intelligent summarization and chart generation
+- [awsCloudWatchGetMetrics](./docs/awsCloudWatchGetMetrics.md) - Retrieve CloudWatch metrics with flexible dimensions and time periods
+- [awsCostOptimizationHubListRecommendations](./docs/awsCostOptimizationHubListRecommendations.md) - Get cost optimization recommendations
 
 ## Error Handling
 
@@ -171,16 +153,17 @@ All tools include comprehensive error handling:
 
 ## Data Format
 
-All AWS tools return data in a consistent format with two main properties:
+All AWS tools return data in a consistent format with three main properties:
 
 - **summary**: A human-readable text summary of the data, optimized for LLM context
 - **datapoints**: The raw data points in JSON format for charting and analysis
+- **chart**: A Vega-Lite chart specification
 
 This design prevents LLM context overflow while providing both human-readable insights and structured data for visualization.
 
 ## Chart Integration
 
-Tools that generate charts (like `awsCloudWatchGetMetrics` and `awsGetCostAndUsage`) return Vega-Lite chart specifications that can be used to generate PNG and SVG files.
+Some tools return Vega-Lite chart specifications that can be used to generate PNG and SVG files. See individual tool documentation for specific chart features and capabilities.
 
 ### Chart Generation Utilities
 
@@ -204,54 +187,17 @@ await generateSVGChart(chartSpec, 'my-chart', './output');
 ```typescript
 import { invoke, generateChartFiles } from '@ddegtyarev/aws-tools';
 
-// Get cost and usage data with chart
-const result = await invoke('awsGetCostAndUsage', {
-  lookBack: 30,
-  granularity: 'DAILY',
-  groupBy: ['SERVICE']
-}, config);
+// Get tool result with chart
+const result = await invoke('toolName', params, config);
 
-// Generate chart files
+// Generate chart files if chart is available
 if (result.chart) {
-  await generateChartFiles(result.chart, 'cost-usage-daily', './charts');
+  await generateChartFiles(result.chart, 'chart-name', './charts');
   // Creates:
-  // - ./charts/png/cost-usage-daily.png
-  // - ./charts/svg/cost-usage-daily.svg
-}
-
-// Get CloudWatch metrics
-const metricsResult = await invoke('awsCloudWatchGetMetrics', {
-  namespace: 'AWS/Lambda',
-  metricName: 'Invocations',
-  startTime: '2024-01-01T00:00:00Z',
-  endTime: '2024-01-31T23:59:59Z',
-  period: 3600,
-  statistic: 'Sum'
-}, config);
-
-// Generate chart files
-if (metricsResult.chart) {
-  await generateChartFiles(metricsResult.chart, 'lambda-invocations', './charts');
-  // Creates:
-  // - ./charts/png/lambda-invocations.png
-  // - ./charts/svg/lambda-invocations.svg
+  // - ./charts/png/chart-name.png
+  // - ./charts/svg/chart-name.svg
 }
 ```
-
-### Chart Features
-
-**Cost and Usage Charts**:
-- **Stacked Column Visualization**: Shows cost trends over time with dimensions as stacked segments
-- **Smart Dimension Selection**: Only displays dimensions constituting 90% of total cost
-- **"Other" Category**: Groups remaining dimensions into a single category
-- **Cost-Included Labels**: Legend shows total cost (e.g., "$1,171 AWS Lambda")
-- **Professional Formatting**: Large numbers formatted with commas
-- **Optimized Legends**: Multi-column layout with constrained width
-
-**CloudWatch Metrics Charts**:
-- **Time Series Visualization**: Line charts showing metric values over time
-- **Flexible Dimensions**: Support for multiple metric dimensions
-- **Statistical Aggregation**: Various aggregation methods (Sum, Average, etc.)
 
 ### Dependencies
 
