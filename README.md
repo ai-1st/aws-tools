@@ -140,210 +140,17 @@ AWS credentials can be provided in several ways:
 - [awsCloudWatchGetMetrics](./docs/awsCloudWatchGetMetrics.md)
 - [awsCostOptimizationHubListRecommendations](./docs/awsCostOptimizationHubListRecommendations.md)
 
-### awsDescribeInstances
+### Tool Features by Category
 
-**Description**: Get detailed information about EC2 instances including their configuration, state, pricing (OnDemand and 3-year Compute Savings Plan), and attached volumes.
+**EC2 Instance Management**:
+- `awsDescribeInstances` - Get detailed EC2 instance information with dual pricing (OnDemand vs Savings Plans)
 
-**Input Schema**:
-```typescript
-{
-  region: string                    // Required: AWS region (e.g., "us-east-1")
-  instanceIds?: string[]           // Optional: Specific instance IDs to describe
-  filters?: Array<{                // Optional: AWS EC2 filters
-    name: string
-    values: string[]
-  }>
-  maxResults?: number              // Optional: Maximum results (default: 1000)
-}
-```
+**Cost Analysis**:
+- `awsGetCostAndUsage` - Retrieve cost and usage data with intelligent summarization and chart generation
+- `awsCostOptimizationHubListRecommendations` - Get cost optimization recommendations
 
-**Output Schema**:
-```typescript
-{
-  summary: string                  // Text summary of EC2 instances with cost information
-  datapoints: Array<{
-    instanceId: string             // EC2 instance ID
-    instanceName: string           // Instance name from Name tag
-    instanceType: string           // Instance type (e.g., "m5.large")
-    platform: string               // Platform details
-    tenancy: string                // Tenancy type
-    region: string                 // AWS region
-    uptimeHours: number            // Instance uptime in hours
-    state: string                  // Instance state
-    tags: object                   // Instance tags (excluding Name tag)
-    cost?: {                       // Optional: Cost information
-      onDemandCost: {              // OnDemand pricing
-        hourlyCost: number         // Hourly OnDemand cost in USD
-        monthlyCost: number        // Monthly OnDemand cost in USD (730 hours)
-      }
-      savingsPlanCost: {           // 3-year no-upfront Compute Savings Plan pricing
-        hourlyCost: number         // Hourly Savings Plan cost in USD
-        monthlyCost: number        // Monthly Savings Plan cost in USD (730 hours)
-      }
-      specifications?: {           // Instance specifications from pricing data
-        vCPU: number               // Number of virtual CPUs
-        memory: number             // Memory in GiB
-        networkPerformance: number // Network performance in Mbps
-        dedicatedEbsThroughput: number // Dedicated EBS throughput in Mbps
-        gpu?: number               // Number of GPUs (if applicable)
-        gpuMemory?: number         // GPU memory in GB (if applicable)
-      }
-      pricingDetails?: {           // Detailed pricing information
-        family: string             // Instance family (e.g., "m5")
-        size: string               // Instance size (e.g., "large")
-        operationCode: string      // OS/software operation code
-        tenancyType: string        // "Shared" or "Dedicated"
-        currentGeneration: boolean // Whether it's current generation
-        instanceFamily: string     // Instance family category
-        physicalProcessor: string  // CPU manufacturer and model
-        clockSpeed: number         // Processor clock speed in GHz
-        processorFeatures: string  // CPU features (e.g., "AVX, AVX2")
-      }
-    }
-    volumes: Array<{               // Attached EBS volumes
-      volumeId: string             // Volume ID
-      size: number                 // Volume size in GB
-      volumeType: string           // Volume type (e.g., "gp2", "io1")
-      iops?: number                // IOPS (for io1 volumes)
-      encrypted: boolean           // Whether volume is encrypted
-    }>
-  }>
-}
-```
-
-**Features**:
-- **Dual Pricing**: Provides both OnDemand and 3-year Compute Savings Plan pricing for cost comparison
-- **Lazy Loading**: Pricing data is downloaded from AWS S3 only when needed
-- **Caching**: Pricing data is cached in the system temp directory for 24 hours
-- **Volume Information**: Includes detailed information about attached EBS volumes
-- **Platform Support**: Supports various operating systems and SQL Server editions
-- **Tenancy Support**: Handles both Shared and Dedicated tenancy pricing
-
-**Example Usage**:
-```typescript
-// Get all instances in us-east-1
-{
-  region: "us-east-1"
-}
-
-// Get specific instances with filters
-{
-  region: "us-west-2",
-  instanceIds: ["i-1234567890abcdef0"],
-  filters: [
-    {
-      name: "instance-state-name",
-      values: ["running"]
-    }
-  ]
-}
-```
-
-**Example Output**:
-```json
-{
-  "summary": "\"web-server-1\" (running): m5.large Linux/UNIX, uptime 5d, ~$0.0960/hr ($70.08/mo) OnDemand, ~$0.0480/hr ($35.04/mo) 3yr Savings Plan, 1×20GB gp2 volume, tags: Environment=Production, Project=WebApp",
-  "datapoints": [
-    {
-      "instanceId": "i-1234567890abcdef0",
-      "instanceName": "web-server-1",
-      "instanceType": "m5.large",
-      "platform": "Linux/UNIX",
-      "tenancy": "default",
-      "region": "us-east-1",
-      "uptimeHours": 120,
-      "state": "running",
-      "tags": {
-        "Environment": "Production",
-        "Project": "WebApp"
-      },
-      "cost": {
-        "onDemandCost": {
-          "hourlyCost": 0.096,
-          "monthlyCost": 70.08
-        },
-        "savingsPlanCost": {
-          "hourlyCost": 0.048,
-          "monthlyCost": 35.04
-        },
-        "specifications": {
-          "vCPU": 2,
-          "memory": 8,
-          "networkPerformance": 5000,
-          "dedicatedEbsThroughput": 650
-        },
-        "pricingDetails": {
-          "family": "m5",
-          "size": "large",
-          "operationCode": "",
-          "tenancyType": "Shared",
-          "currentGeneration": true,
-          "instanceFamily": "General Purpose",
-          "physicalProcessor": "Intel Xeon Platinum 8175",
-          "clockSpeed": 2.5,
-          "processorFeatures": "AVX, AVX2, Intel AVX-512"
-        }
-      },
-      "volumes": [
-        {
-          "volumeId": "vol-1234567890abcdef0",
-          "size": 20,
-          "volumeType": "gp2",
-          "encrypted": false
-        }
-      ]
-    }
-  ]
-}
-```
-
-### awsGetCostAndUsage
-
-**Description**: Retrieve AWS cost and usage data for analysis. Always use this tool when cost information is needed.
-
-**Input Schema**:
-```typescript
-{
-  lookBack?: number                // Optional: Number of days (DAILY) or months (MONTHLY) to look back. Default: 30 for DAILY, 6 for MONTHLY
-  granularity: "DAILY" | "MONTHLY" // Required: Data granularity
-  groupBy?: string[]               // Optional: Grouping dimensions (max 2)
-  filter?: object                  // Optional: Cost Explorer filters
-}
-```
-
-- If `granularity` is `DAILY`, the tool returns data for the last `lookBack` days (ending yesterday).
-- If `granularity` is `MONTHLY`, the tool returns data for the last `lookBack` full months (ending with the previous month).
-
-**Output Schema**:
-```typescript
-{
-  summary: string                  // Human-readable summary
-  datapoints: Array<{
-    date: string                   // Date of the cost data
-    dimensions: {                  // Grouping dimensions and values
-      [key: string]: string
-    }
-    amortizedCost: number          // Amortized cost amount
-    usageAmount: number            // Usage quantity
-  }>
-}
-```
-
-**Example Usage**:
-```typescript
-// Get daily costs for the last 10 days
-{
-  lookBack: 10,
-  granularity: "DAILY"
-}
-
-// Get monthly costs for the last 6 months, grouped by service and region
-{
-  lookBack: 6,
-  granularity: "MONTHLY",
-  groupBy: ["SERVICE", "REGION"]
-}
-```
+**Monitoring & Metrics**:
+- `awsCloudWatchGetMetrics` - Retrieve CloudWatch metrics with flexible dimensions and time periods
 
 ## Error Handling
 
@@ -397,8 +204,23 @@ await generateSVGChart(chartSpec, 'my-chart', './output');
 ```typescript
 import { invoke, generateChartFiles } from '@ddegtyarev/aws-tools';
 
+// Get cost and usage data with chart
+const result = await invoke('awsGetCostAndUsage', {
+  lookBack: 30,
+  granularity: 'DAILY',
+  groupBy: ['SERVICE']
+}, config);
+
+// Generate chart files
+if (result.chart) {
+  await generateChartFiles(result.chart, 'cost-usage-daily', './charts');
+  // Creates:
+  // - ./charts/png/cost-usage-daily.png
+  // - ./charts/svg/cost-usage-daily.svg
+}
+
 // Get CloudWatch metrics
-const result = await invoke('awsCloudWatchGetMetrics', {
+const metricsResult = await invoke('awsCloudWatchGetMetrics', {
   namespace: 'AWS/Lambda',
   metricName: 'Invocations',
   startTime: '2024-01-01T00:00:00Z',
@@ -408,20 +230,35 @@ const result = await invoke('awsCloudWatchGetMetrics', {
 }, config);
 
 // Generate chart files
-if (result.chart) {
-  await generateChartFiles(result.chart, 'lambda-invocations', './charts');
+if (metricsResult.chart) {
+  await generateChartFiles(metricsResult.chart, 'lambda-invocations', './charts');
   // Creates:
   // - ./charts/png/lambda-invocations.png
   // - ./charts/svg/lambda-invocations.svg
 }
 ```
 
+### Chart Features
+
+**Cost and Usage Charts**:
+- **Stacked Column Visualization**: Shows cost trends over time with dimensions as stacked segments
+- **Smart Dimension Selection**: Only displays dimensions constituting 90% of total cost
+- **"Other" Category**: Groups remaining dimensions into a single category
+- **Cost-Included Labels**: Legend shows total cost (e.g., "$1,171 AWS Lambda")
+- **Professional Formatting**: Large numbers formatted with commas
+- **Optimized Legends**: Multi-column layout with constrained width
+
+**CloudWatch Metrics Charts**:
+- **Time Series Visualization**: Line charts showing metric values over time
+- **Flexible Dimensions**: Support for multiple metric dimensions
+- **Statistical Aggregation**: Various aggregation methods (Sum, Average, etc.)
+
 ### Dependencies
 
 Chart generation requires additional dependencies that are not included by default to keep the package lightweight:
 
 ```bash
-npm install vega vega-lite
+npm install vega vega-lite canvas
 ```
 
 ## Contributing

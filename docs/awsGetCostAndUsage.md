@@ -24,6 +24,15 @@
 - **Combined filtering**: User-provided filters are combined with the automatic record type filter
 - **Improved accuracy**: Focuses on actual usage costs rather than accounting adjustments
 
+### Chart Generation
+- **Stacked Column Charts**: Generates Vega-Lite chart specifications for visualizing cost data over time
+- **90% Cost Threshold**: Only shows dimensions that constitute 90% of total cost to reduce chart clutter
+- **"Other" Category**: Remaining dimensions (outside 90% threshold) are grouped into an "Other" category
+- **Cost-Included Labels**: Legend labels include total cost for each dimension (e.g., "$1,171 AWS Lambda")
+- **Comma Formatting**: Large numbers are formatted with commas for better readability (e.g., "$1,171")
+- **Optimized Legends**: Multi-column layout (4 columns) with constrained width and symbol limits
+- **PNG & SVG Export**: Chart specifications can be rendered to both PNG and SVG files
+
 ## Input Schema
 ```typescript
 {
@@ -48,6 +57,7 @@
     amortizedCost: number          // Amortized cost amount
     usageAmount: number            // Usage quantity
   }>
+  chart?: object                   // Optional: Vega-Lite chart specification for stacked column chart
 }
 ```
 
@@ -125,6 +135,86 @@ If a user provides additional filters, they are combined using an `And` operatio
 // Output header: "Data range: 2025-04-01 - 2025-04-30, Dimensions: SERVICE"
 ```
 
+## Chart Features
+
+The tool generates Vega-Lite chart specifications for stacked column charts when groupBy dimensions are provided.
+
+### Chart Configuration
+- **Chart Type**: Stacked column chart showing cost over time
+- **Dimensions**: 800px width × 400px height
+- **Color Scheme**: Uses 'category20' color scheme for up to 20 distinct colors
+- **Tooltip**: Interactive tooltips showing date, dimension, and cost
+
+### Legend Optimization
+- **Orientation**: Top-oriented legend for better space utilization
+- **Multi-column Layout**: 4 columns to fit more items horizontally
+- **Symbol Limit**: Maximum 35 symbols to prevent overcrowding
+- **Label Limit**: 200 characters maximum for dimension labels
+- **Title Limit**: 200 characters for legend title
+
+### Smart Dimension Selection
+The chart implements a 90% cost threshold algorithm:
+1. Calculate total cost across all dimensions and time periods
+2. Sort dimensions by total cost (descending)
+3. Include dimensions until 90% of total cost is reached
+4. Group remaining dimensions into "Other" category
+
+### Data Processing
+```typescript
+// Example chart data transformation
+{
+  date: "2025-04-01",
+  dimension: "$1,171 AWS Lambda",        // Cost-included label
+  originalDimension: "AWS Lambda",       // Original dimension for tooltips
+  cost: 15.23                           // Daily cost value
+}
+```
+
+### Example Chart Specification
+```json
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "AWS Cost and Usage Stacked Column Chart (DAILY)",
+  "width": 800,
+  "height": 400,
+  "data": { "values": [...] },
+  "mark": { "type": "bar", "tooltip": true },
+  "encoding": {
+    "x": {
+      "field": "formattedDate",
+      "type": "nominal",
+      "title": "Date",
+      "axis": { "labelAngle": -45, "labelLimit": 100 }
+    },
+    "y": {
+      "field": "cost",
+      "type": "quantitative",
+      "title": "Cost ($)",
+      "stack": "zero",
+      "axis": { "format": "$.2f" }
+    },
+    "color": {
+      "field": "dimension",
+      "type": "nominal",
+      "title": "Dimension",
+      "scale": { "scheme": "category20" },
+      "legend": {
+        "orient": "top",
+        "titleLimit": 200,
+        "symbolLimit": 35,
+        "labelLimit": 200,
+        "columns": 4
+      }
+    },
+    "tooltip": [
+      { "field": "formattedDate", "title": "Date" },
+      { "field": "originalDimension", "title": "Dimension" },
+      { "field": "cost", "title": "Cost", "format": "$.2f" }
+    ]
+  }
+}
+```
+
 ## Key Improvements
 
 1. **Better cost visibility**: 95% coverage ensures you see the most significant cost drivers
@@ -135,6 +225,9 @@ If a user provides additional filters, they are combined using an `And` operatio
 6. **Adaptive summaries**: Dimension count adjusts based on actual cost distribution
 7. **Enhanced headers**: Dimension grouping information displayed in summary headers
 8. **Consistent formatting**: All dates throughout the summary follow the same granularity-based format
+9. **Visual charts**: Automatic generation of stacked column charts with optimized legends
+10. **Smart chart dimensions**: 90% cost threshold reduces chart clutter while maintaining accuracy
+11. **Professional formatting**: Cost-included labels with comma formatting for better readability
 
 ## Implementation Details
 
