@@ -118,15 +118,16 @@ describe('AWS Describe Instances Pricing Unit Tests', () => {
     // Import the tool directly to test schema
     const { awsDescribeInstances } = await import('../src/tools/awsDescribeInstances');
     
+    const schema = awsDescribeInstances.outputSchema as any;
     expect(awsDescribeInstances.outputSchema).toHaveProperty('properties.datapoints.items.properties.cost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.onDemandCost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.savingsPlanCost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost.properties.onDemandCost).toHaveProperty('properties.hourlyCost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost.properties.onDemandCost).toHaveProperty('properties.monthlyCost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost.properties.savingsPlanCost).toHaveProperty('properties.hourlyCost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost.properties.savingsPlanCost).toHaveProperty('properties.monthlyCost');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.specifications');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.cost).toHaveProperty('properties.pricingDetails');
+    expect(schema.properties.datapoints.items.properties.cost).toHaveProperty('properties.onDemandCost');
+    expect(schema.properties.datapoints.items.properties.cost).toHaveProperty('properties.savingsPlanCost');
+    expect(schema.properties.datapoints.items.properties.cost.properties.onDemandCost).toHaveProperty('properties.hourlyCost');
+    expect(schema.properties.datapoints.items.properties.cost.properties.onDemandCost).toHaveProperty('properties.monthlyCost');
+    expect(schema.properties.datapoints.items.properties.cost.properties.savingsPlanCost).toHaveProperty('properties.hourlyCost');
+    expect(schema.properties.datapoints.items.properties.cost.properties.savingsPlanCost).toHaveProperty('properties.monthlyCost');
+    expect(schema.properties.datapoints.items.properties.cost).toHaveProperty('properties.specifications');
+    expect(schema.properties.datapoints.items.properties.cost).toHaveProperty('properties.pricingDetails');
   });
 
 
@@ -134,8 +135,9 @@ describe('AWS Describe Instances Pricing Unit Tests', () => {
   test('should have volumes in output schema', async () => {
     const { awsDescribeInstances } = await import('../src/tools/awsDescribeInstances');
     
+    const schema = awsDescribeInstances.outputSchema as any;
     expect(awsDescribeInstances.outputSchema).toHaveProperty('properties.datapoints.items.properties.volumes');
-    expect(awsDescribeInstances.outputSchema.properties.datapoints.items.properties.volumes.type).toBe('array');
+    expect(schema.properties.datapoints.items.properties.volumes.type).toBe('array');
   });
 
   test('should calculate costs correctly with mock pricing data', async () => {
