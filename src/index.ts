@@ -5,6 +5,9 @@ import { awsGetCostAndUsage } from './tools/awsGetCostAndUsage';
 import { awsCloudWatchGetMetrics } from './tools/awsCloudWatchGetMetrics';
 import { awsCostOptimizationHubListRecommendations } from './tools/awsCostOptimizationHubListRecommendations';
 
+// Export chart utilities
+export { generateChartFiles, generatePNGChart, generateSVGChart } from './chartUtils';
+
 export const tools = [
   awsDescribeInstances,
   awsGetCostAndUsage,

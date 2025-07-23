@@ -216,6 +216,184 @@ function generateCostSummary(results: any[], granularity: 'DAILY' | 'MONTHLY', g
   return summaryLines.join('\n');
 }
 
+function generateStackedColumnChart(datapoints: any[], granularity: 'DAILY' | 'MONTHLY', groupBy?: string[]) {
+  if (!datapoints || datapoints.length === 0) {
+    return {};
+  }
+
+  // Transform datapoints for Vega-Lite stacked column chart
+  const chartData: any[] = [];
+  const dimensionTotals: { [key: string]: number } = {};
+  
+  // First pass: calculate total costs for each dimension
+  datapoints.forEach(result => {
+    if (result.dimensions) {
+      Object.entries(result.dimensions).forEach(([key, value]) => {
+        const cost = parseFloat(value as string) || 0;
+        if (cost >= 0.01) {
+          dimensionTotals[key] = (dimensionTotals[key] || 0) + cost;
+        }
+      });
+    }
+  });
+
+  // Calculate total cost and determine which dimensions to include (90% threshold)
+  const totalCost = Object.values(dimensionTotals).reduce((sum, cost) => sum + cost, 0);
+  const threshold = totalCost * 0.9;
+  
+  // Sort dimensions by cost (descending) and select top ones that reach 90%
+  const sortedDimensions = Object.entries(dimensionTotals)
+    .sort(([, a], [, b]) => b - a);
+  
+  let cumulativeCost = 0;
+  const includedDimensions = new Set<string>();
+  
+  for (const [dimension, cost] of sortedDimensions) {
+    cumulativeCost += cost;
+    includedDimensions.add(dimension);
+    if (cumulativeCost >= threshold) {
+      break;
+    }
+  }
+  
+  // Second pass: create chart data with cost-included labels
+  datapoints.forEach(result => {
+    if (result.dimensions) {
+      let otherCost = 0;
+      
+      Object.entries(result.dimensions).forEach(([key, value]) => {
+        const cost = parseFloat(value as string) || 0;
+        // Filter out costs less than $0.01
+        if (cost >= 0.01) {
+          if (includedDimensions.has(key)) {
+            // Include top dimensions with their individual labels
+            const totalCost = dimensionTotals[key];
+            const formattedTotal = totalCost.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            const dimensionLabel = `$${formattedTotal} ${key}`;
+            
+            chartData.push({
+              date: result.date,
+              dimension: dimensionLabel,
+              originalDimension: key,
+              cost: cost
+            });
+          } else {
+            // Accumulate other dimensions
+            otherCost += cost;
+          }
+        }
+      });
+      
+      // Add "Other" category if there are costs to include
+      if (otherCost > 0) {
+        const remainingCost = totalCost - Object.entries(dimensionTotals)
+          .filter(([key]) => includedDimensions.has(key))
+          .reduce((sum, [, cost]) => sum + cost, 0);
+        const formattedRemaining = remainingCost.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const otherLabel = `$${formattedRemaining} Other`;
+        
+        chartData.push({
+          date: result.date,
+          dimension: otherLabel,
+          originalDimension: 'Other',
+          cost: otherCost
+        });
+      }
+    }
+  });
+
+  // Format dates based on granularity
+  const formatDate = (dateStr: string) => {
+    if (granularity === 'MONTHLY') {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    }
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Sort data by date and get unique dimensions
+  const sortedData = chartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const dimensions = [...new Set(chartData.map(d => d.dimension))].sort();
+  
+  // Format dates for display
+  const formattedData = sortedData.map(d => ({
+    ...d,
+    formattedDate: formatDate(d.date)
+  }));
+
+  const vegaLiteSpec = {
+    $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    description: `AWS Cost and Usage Stacked Column Chart (${granularity})`,
+    width: 800,
+    height: 400,
+    data: {
+      values: formattedData
+    },
+    mark: {
+      type: 'bar',
+      tooltip: true
+    },
+    encoding: {
+      x: {
+        field: 'formattedDate',
+        type: 'nominal',
+        title: granularity === 'DAILY' ? 'Date' : 'Month',
+        sort: null,
+        axis: {
+          labelAngle: -45,
+          labelLimit: 100
+        }
+      },
+      y: {
+        field: 'cost',
+        type: 'quantitative',
+        title: 'Cost ($)',
+        stack: 'zero',
+        axis: {
+          format: '$.2f'
+        }
+      },
+      color: {
+        field: 'dimension',
+        type: 'nominal',
+        title: 'Dimension',
+        scale: {
+          scheme: 'category20'
+        },
+        legend: {
+          orient: 'top',
+          titleLimit: 200,
+          symbolLimit: 35,
+          labelLimit: 200,
+          columns: 4
+        }
+      },
+      tooltip: [
+        { field: 'formattedDate', title: 'Date' },
+        { field: 'originalDimension', title: 'Dimension' },
+        { field: 'cost', title: 'Cost', format: '$.2f' }
+      ]
+    },
+    config: {
+      axis: {
+        labelFontSize: 12,
+        titleFontSize: 14
+      },
+      legend: {
+        labelFontSize: 11,
+        titleFontSize: 12,
+        symbolSize: 12,
+        symbolStrokeWidth: 1
+      },
+      title: {
+        fontSize: 16
+      }
+    }
+  };
+
+  return vegaLiteSpec;
+}
+
 export const awsGetCostAndUsage: Tool = {
   name: 'awsGetCostAndUsage',
   description: 'Retrieve AWS cost and usage data for analysis. Always use this tool when cost information is needed.',
@@ -243,6 +421,7 @@ export const awsGetCostAndUsage: Tool = {
           },
         },
       },
+      chart: { type: 'object', description: 'Vega-Lite TopLevelSpec object for generating a stacked column chart' },
     },
   },
   configSchema: {
@@ -371,10 +550,12 @@ export const awsGetCostAndUsage: Tool = {
       } while (nextToken);
       
       const summary = generateCostSummary(allResults, granularity, actualGroupBy);
+      const chart = generateStackedColumnChart(allResults, granularity, actualGroupBy);
       
       const output = {
         summary,
         datapoints: allResults,
+        chart,
       };
       
       logger?.debug(`awsGetCostAndUsage output:\n${output.summary}\n`, output.datapoints);

@@ -5,4 +5,6 @@ output
 output.txt
 .env
 tests/svg
+tests/png
+.DS_Store
 

@@ -371,6 +371,59 @@ All AWS tools return data in a consistent format with two main properties:
 
 This design prevents LLM context overflow while providing both human-readable insights and structured data for visualization.
 
+## Chart Integration
+
+Tools that generate charts (like `awsCloudWatchGetMetrics` and `awsGetCostAndUsage`) return Vega-Lite chart specifications that can be used to generate PNG and SVG files.
+
+### Chart Generation Utilities
+
+The module provides utility functions for generating chart files:
+
+```typescript
+import { generateChartFiles, generatePNGChart, generateSVGChart } from '@ddegtyarev/aws-tools';
+
+// Generate both PNG and SVG files
+await generateChartFiles(chartSpec, 'my-chart', './output');
+
+// Generate only PNG file
+await generatePNGChart(chartSpec, 'my-chart', './output');
+
+// Generate only SVG file
+await generateSVGChart(chartSpec, 'my-chart', './output');
+```
+
+### Example Usage
+
+```typescript
+import { invoke, generateChartFiles } from '@ddegtyarev/aws-tools';
+
+// Get CloudWatch metrics
+const result = await invoke('awsCloudWatchGetMetrics', {
+  namespace: 'AWS/Lambda',
+  metricName: 'Invocations',
+  startTime: '2024-01-01T00:00:00Z',
+  endTime: '2024-01-31T23:59:59Z',
+  period: 3600,
+  statistic: 'Sum'
+}, config);
+
+// Generate chart files
+if (result.chart) {
+  await generateChartFiles(result.chart, 'lambda-invocations', './charts');
+  // Creates:
+  // - ./charts/png/lambda-invocations.png
+  // - ./charts/svg/lambda-invocations.svg
+}
+```
+
+### Dependencies
+
+Chart generation requires additional dependencies that are not included by default to keep the package lightweight:
+
+```bash
+npm install vega vega-lite
+```
+
 ## Contributing
 
 To add new AWS tools:

@@ -31,7 +31,8 @@
     "typescript": "^5.8.3",
     "vega": "^6.1.2",
     "vega-lite": "^6.2.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "canvas": "^3.1.2"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.844.0",
