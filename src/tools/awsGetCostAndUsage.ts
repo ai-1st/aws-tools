@@ -1,34 +1,33 @@
 // src/tools/awsGetCostAndUsage.ts
 
 import { CostExplorerClient, GetCostAndUsageCommand, Expression } from '@aws-sdk/client-cost-explorer';
+import { subDays, subMonths, startOfMonth, format, addDays, startOfDay } from 'date-fns';
 import { Logger } from '../logger.js';
 import { Tool } from '../tool.js';
 
 function calculateDateRange(lookBack: number, granularity: 'DAILY' | 'MONTHLY'): { startDate: string; endDate: string } {
-  const today = new Date();
+  // Use UTC to avoid timezone issues - get current date at UTC midnight
+  const todayUTC = new Date();
+  const today = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), todayUTC.getUTCDate()));
   
   if (granularity === 'DAILY') {
     // For daily: end date is yesterday, start date is lookBack days before end date
-    const endDate = new Date(today);
-    endDate.setDate(today.getDate() - 1); // Yesterday
-    
-    const startDate = new Date(endDate);
-    startDate.setDate(endDate.getDate() - lookBack + 1); // lookBack days before end date
+    const endDate = subDays(today, 1); // Yesterday
+    const startDate = subDays(endDate, lookBack - 1); // lookBack days before end date (inclusive)
     
     return {
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
+      startDate: format(startDate, 'yyyy-MM-dd'),
+      endDate: format(endDate, 'yyyy-MM-dd'),
     };
   } else {
     // For monthly: end date is first day of current month, start date is first day of lookBack months before
-    // Use UTC to avoid timezone issues
-    const endDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1)); // First day of current month
-    
-    const startDate = new Date(Date.UTC(today.getFullYear(), today.getMonth() - lookBack, 1)); // First day of lookBack months ago
+    const currentMonthStart = startOfMonth(today);
+    const endDate = currentMonthStart; // First day of current month
+    const startDate = subMonths(currentMonthStart, lookBack); // First day of lookBack months ago
     
     return {
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
+      startDate: format(startDate, 'yyyy-MM-dd'),
+      endDate: format(endDate, 'yyyy-MM-dd'),
     };
   }
 }
