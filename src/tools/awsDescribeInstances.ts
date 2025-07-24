@@ -1,8 +1,8 @@
 // src/tools/awsDescribeInstances.ts
 
 import { EC2Client, DescribeInstancesCommand, DescribeVolumesCommand } from '@aws-sdk/client-ec2';
-import { Logger } from '../logger';
-import { Tool } from '../tool';
+import { Logger } from '../logger.js';
+import { Tool } from '../tool.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';

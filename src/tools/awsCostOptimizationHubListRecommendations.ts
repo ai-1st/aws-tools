@@ -1,8 +1,8 @@
 // src/tools/awsCostOptimizationHubListRecommendations.ts
 
 import { CostOptimizationHubClient, ListRecommendationsCommand } from '@aws-sdk/client-cost-optimization-hub';
-import { Logger } from '../logger';
-import { Tool } from '../tool';
+import { Logger } from '../logger.js';
+import { Tool } from '../tool.js';
 
 function generateRecommendationsSummary(recommendations: any[], totalFetched: number, totalSavings: any): string {
   if (!recommendations || recommendations.length === 0) {

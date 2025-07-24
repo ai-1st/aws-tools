@@ -1,8 +1,8 @@
 // src/tools/awsCloudWatchGetMetrics.ts
 
 import { CloudWatchClient, GetMetricDataCommand } from '@aws-sdk/client-cloudwatch';
-import { Logger } from '../logger';
-import { Tool } from '../tool';
+import { Logger } from '../logger.js';
+import { Tool } from '../tool.js';
 
 function generateMetricsSummary(datapoints: any[], namespace: string, metricName: string): string {
   if (!datapoints || datapoints.length === 0) {

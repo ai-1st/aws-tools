@@ -1,6 +1,6 @@
 {
   "name": "@ddegtyarev/aws-tools",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "This project contains AWS API integration tools for use in Vertex AI SDK.",
   "repository": {
     "type": "git",

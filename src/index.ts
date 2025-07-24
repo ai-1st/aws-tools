@@ -1,12 +1,12 @@
 // src/index.ts
 
-import { awsDescribeInstances } from './tools/awsDescribeInstances';
-import { awsGetCostAndUsage } from './tools/awsGetCostAndUsage';
-import { awsCloudWatchGetMetrics } from './tools/awsCloudWatchGetMetrics';
-import { awsCostOptimizationHubListRecommendations } from './tools/awsCostOptimizationHubListRecommendations';
+import { awsDescribeInstances } from './tools/awsDescribeInstances.js';
+import { awsGetCostAndUsage } from './tools/awsGetCostAndUsage.js';
+import { awsCloudWatchGetMetrics } from './tools/awsCloudWatchGetMetrics.js';
+import { awsCostOptimizationHubListRecommendations } from './tools/awsCostOptimizationHubListRecommendations.js';
 
 // Export chart utilities
-export { generateChartFiles, generatePNGChart, generateSVGChart } from './chartUtils';
+export { generateChartFiles, generatePNGChart, generateSVGChart } from './chartUtils.js';
 
 export const tools = [
   awsDescribeInstances,

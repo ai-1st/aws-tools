@@ -1,8 +1,8 @@
 // src/tools/awsGetCostAndUsage.ts
 
 import { CostExplorerClient, GetCostAndUsageCommand, Expression } from '@aws-sdk/client-cost-explorer';
-import { Logger } from '../logger';
-import { Tool } from '../tool';
+import { Logger } from '../logger.js';
+import { Tool } from '../tool.js';
 
 function calculateDateRange(lookBack: number, granularity: 'DAILY' | 'MONTHLY'): { startDate: string; endDate: string } {
   const today = new Date();

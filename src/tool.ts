@@ -1,6 +1,6 @@
 // src/tool.ts
 
-import { Logger } from './logger';
+import { Logger } from './logger.js';
 
 export interface Tool {
   name: string;
