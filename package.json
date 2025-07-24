@@ -1,12 +1,30 @@
 {
   "name": "@ddegtyarev/aws-tools",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "This project contains AWS API integration tools for use in Vertex AI SDK.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ai-1st/aws-tools.git"
   },
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
+    },
+    "./chartUtils": {
+      "import": "./dist/src/chartUtils.js",
+      "types": "./dist/src/chartUtils.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "ARCHITECTURE.md"
+  ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
