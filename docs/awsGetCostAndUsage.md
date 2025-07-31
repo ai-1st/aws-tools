@@ -38,7 +38,32 @@
 {
   lookBack?: number                // Optional: Number of days (DAILY) or months (MONTHLY) to look back. Default: 30 for DAILY, 6 for MONTHLY
   granularity: "DAILY" | "MONTHLY" // Required: Data granularity
-  groupBy?: string[]               // Optional: Grouping dimensions (max 2)
+  /**
+   * Optional: Grouping dimensions (max 2).
+  */
+  groupBy?: (
+    | "AZ"
+    | "INSTANCE_TYPE"
+    | "LINKED_ACCOUNT"
+    | "OPERATION"
+    | "PURCHASE_TYPE"
+    | "SERVICE"
+    | "USAGE_TYPE"
+    | "PLATFORM"
+    | "TENANCY"
+    | "RECORD_TYPE"
+    | "LEGAL_ENTITY_NAME"
+    | "INVOICING_ENTITY"
+    | "DEPLOYMENT_OPTION"
+    | "DATABASE_ENGINE"
+    | "CACHE_ENGINE"
+    | "INSTANCE_TYPE_FAMILY"
+    | "BILLING_ENTITY"
+    | "RESERVATION_ID"
+    | "SAVINGS_PLANS_TYPE"
+    | "SAVINGS_PLAN_ARN"
+    | "OPERATING_SYSTEM"
+  )[];
   filter?: object                  // Optional: Cost Explorer filters (combined with automatic record type filter)
 }
 ```

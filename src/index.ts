@@ -4,6 +4,7 @@ import { awsDescribeInstances } from './tools/awsDescribeInstances.js';
 import { awsGetCostAndUsage } from './tools/awsGetCostAndUsage.js';
 import { awsCloudWatchGetMetrics } from './tools/awsCloudWatchGetMetrics.js';
 import { awsCostOptimizationHubListRecommendations } from './tools/awsCostOptimizationHubListRecommendations.js';
+import { awsCostPerServicePerRegion } from './tools/awsCostPerServicePerRegion.js';
 
 // Export chart utilities
 export { generateChartFiles, generatePNGChart, generateSVGChart } from './chartUtils.js';
@@ -13,6 +14,7 @@ export const tools = [
   awsGetCostAndUsage,
   awsCloudWatchGetMetrics,
   awsCostOptimizationHubListRecommendations,
+  awsCostPerServicePerRegion,
 ];
 
 export async function invoke(toolName: string, input: any, config: any): Promise<any> {
@@ -25,6 +27,8 @@ export async function invoke(toolName: string, input: any, config: any): Promise
       return await awsCloudWatchGetMetrics.invoke(input, config);
     case 'awsCostOptimizationHubListRecommendations':
       return await awsCostOptimizationHubListRecommendations.invoke(input, config);
+    case 'awsCostPerServicePerRegion':
+      return await awsCostPerServicePerRegion.invoke(input, config);
     default:
       throw new Error(`Tool ${toolName} not found`);
   }

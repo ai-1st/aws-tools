@@ -1,36 +1,9 @@
 // src/tools/awsGetCostAndUsage.ts
 
 import { CostExplorerClient, GetCostAndUsageCommand, Expression } from '@aws-sdk/client-cost-explorer';
-import { subDays, subMonths, startOfMonth, format, addDays, startOfDay } from 'date-fns';
 import { Logger } from '../logger.js';
 import { Tool } from '../tool.js';
-
-function calculateDateRange(lookBack: number, granularity: 'DAILY' | 'MONTHLY'): { startDate: string; endDate: string } {
-  // Use UTC to avoid timezone issues - get current date at UTC midnight
-  const todayUTC = new Date();
-  const today = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), todayUTC.getUTCDate()));
-  
-  if (granularity === 'DAILY') {
-    // For daily: end date is yesterday, start date is lookBack days before end date
-    const endDate = subDays(today, 1); // Yesterday
-    const startDate = subDays(endDate, lookBack - 1); // lookBack days before end date (inclusive)
-    
-    return {
-      startDate: format(startDate, 'yyyy-MM-dd'),
-      endDate: format(endDate, 'yyyy-MM-dd'),
-    };
-  } else {
-    // For monthly: end date is first day of current month, start date is first day of lookBack months before
-    const currentMonthStart = startOfMonth(today);
-    const endDate = currentMonthStart; // First day of current month
-    const startDate = subMonths(currentMonthStart, lookBack); // First day of lookBack months ago
-    
-    return {
-      startDate: format(startDate, 'yyyy-MM-dd'),
-      endDate: format(endDate, 'yyyy-MM-dd'),
-    };
-  }
-}
+import { calculateDateRange } from '../utils/costUtils.js';
 
 interface AggregatedDimension {
   key: string;
@@ -401,7 +374,7 @@ export const awsGetCostAndUsage: Tool = {
     properties: {
       lookBack: { type: 'number', description: 'Number of days (DAILY) or months (MONTHLY) to look back. Default: 30 for DAILY, 6 for MONTHLY' },
       granularity: { type: 'string', enum: ['DAILY', 'MONTHLY'], description: 'Data granularity' },
-      groupBy: { type: 'array', items: { type: 'string', enum: ['AZ', 'INSTANCE_TYPE', 'LINKED_ACCOUNT', 'OPERATION', 'PURCHASE_TYPE', 'SERVICE', 'USAGE_TYPE', 'PLATFORM', 'TENANCY', 'RECORD_TYPE', 'LEGAL_ENTITY_NAME', 'INVOICING_ENTITY', 'DEPLOYMENT_OPTION', 'DATABASE_ENGINE', 'CACHE_ENGINE', 'INSTANCE_TYPE_FAMILY', 'REGION', 'BILLING_ENTITY', 'RESERVATION_ID', 'SAVINGS_PLANS_TYPE', 'SAVINGS_PLAN_ARN', 'OPERATING_SYSTEM'] }, description: 'Grouping dimensions up to 2.' },
+      groupBy: { type: 'array', items: { type: 'string', enum: ['AZ', 'INSTANCE_TYPE', 'LINKED_ACCOUNT', 'OPERATION', 'PURCHASE_TYPE', 'SERVICE', 'USAGE_TYPE', 'PLATFORM', 'TENANCY', 'RECORD_TYPE', 'LEGAL_ENTITY_NAME', 'INVOICING_ENTITY', 'DEPLOYMENT_OPTION', 'DATABASE_ENGINE', 'CACHE_ENGINE', 'INSTANCE_TYPE_FAMILY', 'BILLING_ENTITY', 'RESERVATION_ID', 'SAVINGS_PLANS_TYPE', 'SAVINGS_PLAN_ARN', 'OPERATING_SYSTEM'] }, description: 'Grouping dimensions up to 2.' },
       filter: { type: 'object', description: 'Filters to apply' },
     },
     required: ['granularity', 'groupBy'],
@@ -435,7 +408,7 @@ export const awsGetCostAndUsage: Tool = {
         },
         required: ['accessKeyId', 'secretAccessKey'],
       },
-      region: { type: 'string', description: 'AWS region (default: us-east-1 for Cost Explorer)' },
+      region: { type: 'string', description: 'AWS region' },
       logger: { type: 'object' },
     },
     required: ['credentials', 'region'],
@@ -457,7 +430,7 @@ export const awsGetCostAndUsage: Tool = {
 
     logger?.debug('awsGetCostAndUsage input:', { ...input, calculatedStartDate: startDate, calculatedEndDate: endDate, actualGroupBy });
 
-    const costExplorerClient = new CostExplorerClient({ region, credentials: config.credentials });
+    const costExplorerClient = new CostExplorerClient({ credentials: config.credentials });
 
     const record_type_filter: Expression = {
       Not: {
@@ -468,7 +441,27 @@ export const awsGetCostAndUsage: Tool = {
       }
     };
 
-    const command = new GetCostAndUsageCommand({
+    const region_filter: Expression = {
+      Dimensions: {
+        Key: 'REGION',
+        Values: [region]
+      }
+    };
+
+    const combined_filter: Expression = filter ? {
+      And: [
+        filter,
+        record_type_filter,
+        region_filter
+      ]
+    } : {
+      And: [
+        record_type_filter,
+        region_filter
+      ]
+    };
+
+    const params = {
       TimePeriod: {
         Start: startDate,
         End: endDate,
@@ -476,13 +469,9 @@ export const awsGetCostAndUsage: Tool = {
       Granularity: granularity,
       GroupBy: actualGroupBy.map((g: string) => ({ Type: 'DIMENSION', Key: g })),
       Metrics: ['AmortizedCost', 'UsageQuantity'],
-      Filter: filter ? {
-        And: [
-          filter,
-          record_type_filter
-        ]
-      } : record_type_filter
-    });
+      Filter: combined_filter
+    }
+    const command = new GetCostAndUsageCommand(params);
 
     try {
       let allResults: any[] = [];
@@ -490,19 +479,7 @@ export const awsGetCostAndUsage: Tool = {
       
       do {
         const commandWithToken = new GetCostAndUsageCommand({
-          TimePeriod: {
-            Start: startDate,
-            End: endDate,
-          },
-          Granularity: granularity,
-          GroupBy: actualGroupBy.map((g: string) => ({ Type: 'DIMENSION', Key: g })),
-          Metrics: ['AmortizedCost', 'UsageQuantity'],
-          Filter: filter ? {
-            And: [
-              filter,
-              record_type_filter
-            ]
-          } : record_type_filter,
+          ...params,
           NextPageToken: nextToken
         });
         
