@@ -14,6 +14,7 @@ describe('AWS Get Cost and Usage E2E Tests', () => {
     const input = {
       lookBack: 7,
       granularity: 'DAILY',
+      groupBy: ['SERVICE'], // Required field for validation
     };
     const result = await invoke('awsGetCostAndUsage', input, config);
 

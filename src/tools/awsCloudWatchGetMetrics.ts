@@ -3,6 +3,7 @@
 import { CloudWatchClient, GetMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { Logger } from '../logger.js';
 import { Tool } from '../tool.js';
+import { validateParameters } from '../utils/validation.js';
 
 function generateMetricsSummary(datapoints: any[], namespace: string, metricName: string): string {
   if (!datapoints || datapoints.length === 0) {
@@ -167,8 +168,13 @@ export const awsCloudWatchGetMetrics: Tool = {
   },
   defaultConfig: {},
   async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
+    const { logger } = config;
+    
+    // Validate input and config against schemas
+    validateParameters(input, this.inputSchema, config, this.configSchema, logger);
+    
     const { namespace, metricName, dimensions, startTime, endTime, period, statistic } = input;
-    const { region, logger } = config;
+    const { region } = config;
 
     logger?.debug('awsCloudWatchGetMetrics input:', input);
 

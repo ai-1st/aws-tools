@@ -2,6 +2,7 @@ import { CostExplorerClient, GetCostAndUsageCommand, Expression, GroupDefinition
 import { Logger } from '../logger.js';
 import { Tool } from '../tool.js';
 import { calculateDateRange, generateSimpleCostSummary } from '../utils/costUtils.js';
+import { validateParameters } from '../utils/validation.js';
 
 export const awsCostPerServicePerRegion: Tool = {
   name: 'awsCostPerServicePerRegion',
@@ -49,8 +50,13 @@ export const awsCostPerServicePerRegion: Tool = {
   },
   defaultConfig: {},
   async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
+    const { logger } = config;
+    
+    // Validate input and config against schemas
+    validateParameters(input, this.inputSchema, config, this.configSchema, logger);
+    
     const { lookBack, granularity } = input;
-    const { region, logger } = config;
+    const { region } = config;
 
     // Set default lookBack values
     const defaultLookBack = granularity === 'DAILY' ? 30 : 6;

@@ -3,6 +3,7 @@
 import { EC2Client, DescribeInstancesCommand, DescribeVolumesCommand } from '@aws-sdk/client-ec2';
 import { Logger } from '../logger.js';
 import { Tool } from '../tool.js';
+import { validateParameters } from '../utils/validation.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -437,8 +438,13 @@ export const awsDescribeInstances: Tool = {
   },
   defaultConfig: {},
   async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
+    const { logger } = config;
+    
+    // Validate input and config against schemas
+    validateParameters(input, this.inputSchema, config, this.configSchema, logger);
+    
     const { instanceIds, filters, maxResults } = input;
-    const { region, logger } = config;
+    const { region } = config;
 
     logger?.debug('awsDescribeInstances input:', input);
 

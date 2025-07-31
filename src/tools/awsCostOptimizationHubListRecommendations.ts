@@ -3,6 +3,7 @@
 import { CostOptimizationHubClient, ListRecommendationsCommand } from '@aws-sdk/client-cost-optimization-hub';
 import { Logger } from '../logger.js';
 import { Tool } from '../tool.js';
+import { validateParameters } from '../utils/validation.js';
 
 function generateRecommendationsSummary(recommendations: any[], totalFetched: number, totalSavings: any): string {
   if (!recommendations || recommendations.length === 0) {
@@ -82,8 +83,13 @@ export const awsCostOptimizationHubListRecommendations: Tool = {
   },
   defaultConfig: {},
   async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
+    const { logger } = config;
+    
+    // Validate input and config against schemas
+    validateParameters(input, this.inputSchema, config, this.configSchema, logger);
+    
     const { maxResults } = input;
-    const { region, logger } = config;
+    const { region } = config;
 
     logger?.debug('awsCostOptimizationHubListRecommendations input:', input);
 

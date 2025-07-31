@@ -4,6 +4,7 @@ import { CostExplorerClient, GetCostAndUsageCommand, Expression } from '@aws-sdk
 import { Logger } from '../logger.js';
 import { Tool } from '../tool.js';
 import { calculateDateRange } from '../utils/costUtils.js';
+import { validateParameters } from '../utils/validation.js';
 
 interface AggregatedDimension {
   key: string;
@@ -375,7 +376,7 @@ export const awsGetCostAndUsage: Tool = {
       lookBack: { type: 'number', description: 'Number of days (DAILY) or months (MONTHLY) to look back. Default: 30 for DAILY, 6 for MONTHLY' },
       granularity: { type: 'string', enum: ['DAILY', 'MONTHLY'], description: 'Data granularity' },
       groupBy: { type: 'array', items: { type: 'string', enum: ['AZ', 'INSTANCE_TYPE', 'LINKED_ACCOUNT', 'OPERATION', 'PURCHASE_TYPE', 'SERVICE', 'USAGE_TYPE', 'PLATFORM', 'TENANCY', 'RECORD_TYPE', 'LEGAL_ENTITY_NAME', 'INVOICING_ENTITY', 'DEPLOYMENT_OPTION', 'DATABASE_ENGINE', 'CACHE_ENGINE', 'INSTANCE_TYPE_FAMILY', 'BILLING_ENTITY', 'RESERVATION_ID', 'SAVINGS_PLANS_TYPE', 'SAVINGS_PLAN_ARN', 'OPERATING_SYSTEM'] }, description: 'Grouping dimensions up to 2.' },
-      filter: { type: 'object', description: 'Filters to apply' },
+      filter: { type: 'object', description: 'Filters to apply. Example filters: {"And": [{"Dimensions": {"Key": "OPERATION","Values": ["RunInstances:0010"]}},{"Dimensions": {"Key": "INSTANCE_TYPE","Values": ["u-9tb1.112xlarge"]}}]} another example: {"Not": {"Dimensions": {"Key": "PURCHASE_TYPE", "Values": ["Spot Instances"]}}}. Do not use region filters as the region is already filtered.' },
     },
     required: ['granularity', 'groupBy'],
   },
@@ -415,8 +416,13 @@ export const awsGetCostAndUsage: Tool = {
   },
   defaultConfig: {},
   async invoke(input: any, config: { credentials?: any; region: string; logger?: Logger }): Promise<any> {
+    const { logger } = config;
+    
+    // Validate input and config against schemas
+    validateParameters(input, this.inputSchema, config, this.configSchema, logger);
+    
     const { lookBack, granularity, groupBy, filter } = input;
-    const { region, logger } = config;
+    const { region } = config;
 
     // Set default lookBack values
     const defaultLookBack = granularity === 'DAILY' ? 30 : 6;
